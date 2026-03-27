@@ -103,3 +103,26 @@ class SitePhoto(models.Model):
 
     def __str__(self):
         return f"Photo for {self.site.site_id} by {self.contractor.username} - {self.status}"
+
+class ActivityAlert(models.Model):
+    # The actual alert message
+    message = models.CharField(max_length=255)
+    
+    # The contractor who triggered the alert
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='triggered_alerts')
+    
+    # The site this alert is about
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='site_alerts')
+    
+    # Automatically records exactly when this happened
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    # We can use this later to filter alerts specifically for QAs, Clients, etc.
+    alert_type = models.CharField(max_length=50, choices=[
+        ('CHECK_IN', 'Contractor Checked In'),
+        ('UPLOAD', 'Photos Uploaded'),
+        ('REWORK', 'Rework Requested'),
+    ], default='CHECK_IN')
+
+    def __str__(self):
+        return f"[{self.timestamp.strftime('%Y-%m-%d %H:%M')}] {self.user.username}: {self.message}"

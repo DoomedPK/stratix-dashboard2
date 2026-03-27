@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
 from import_export.admin import ImportExportModelAdmin
-from .models import Client, Project, Site, UserProfile, Report, Photo
+from .models import Client, Project, UserProfile, Site, Report, Photo, SitePhoto, ActivityAlert
 from .models import Site, SitePhoto
 from .resources import SiteResource
 
@@ -61,3 +61,20 @@ class SitePhotoAdmin(admin.ModelAdmin):
     search_fields = ('site__site_id', 'contractor__username')
     # This adds the filters on the right side!
     list_filter = ('status', 'site')
+    # NEW: Locks these fields so QAs can view them but cannot change them!
+    readonly_fields = ('contractor', 'site', 'image', 'uploaded_at')
+
+# NEW: Our custom Activity Alert admin interface
+@admin.register(ActivityAlert)
+class ActivityAlertAdmin(admin.ModelAdmin):
+    # This dictates exactly which columns show up in the admin table
+    list_display = ('timestamp', 'user', 'alert_type', 'site', 'message')
+    
+    # Adds a filter box on the right side to sort by type or site
+    list_filter = ('alert_type', 'site', 'user')
+    
+    # Adds a search bar to look up specific alerts
+    search_fields = ('user__username', 'message', 'site__site_id')
+    
+    # Makes the table read-only so people don't accidentally edit history
+    readonly_fields = ('timestamp',)
