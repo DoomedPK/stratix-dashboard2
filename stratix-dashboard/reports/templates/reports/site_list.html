@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload Site Photos | Stratix</title>
+    <title>Site Visit List | Stratix</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -23,14 +23,14 @@
         .nav-link { border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
         .nav-link:hover { background-color: #1e2937; color: #38bdf8 !important; padding-left: 25px !important;}
         
-        .upload-area { border: 2px dashed #38bdf8; border-radius: 12px; padding: 40px; text-align: center; background-color: #0f172a; transition: 0.3s;}
-        .upload-area:hover { background-color: #1e2937; cursor: pointer; }
-        .form-control, .form-select { background-color: #0f172a; border: 1px solid #334155; color: white; }
-        .form-control:focus, .form-select:focus { background-color: #0f172a; color: white; border-color: #38bdf8; box-shadow: none; }
-        
         .search-bar { background-color: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px;}
         .search-bar:focus { background-color: #0f172a; color: white; border-color: #38bdf8; box-shadow: none; }
         .search-bar::placeholder { color: #64748b; }
+        
+        .table-dark { background-color: transparent; }
+        .table-dark th { background-color: #1e2937; border-bottom: 2px solid #334155; color: #94a3b8; text-transform: uppercase; font-size: 0.85rem;}
+        .table-dark td { background-color: #1e2937; border-bottom: 1px solid #334155; vertical-align: middle;}
+        .table-hover tbody tr:hover td { background-color: #0f172a; }
     </style>
 </head>
 <body>
@@ -91,88 +91,61 @@
     </div>
 
     <div class="container py-4">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <h2 class="fw-bold mb-4"><i class="fas fa-cloud-upload-alt me-2 text-primary"></i> Upload Site Photos</h2>
-                
-                <div class="card p-4 shadow-sm">
-                    <form action="{% url 'upload_photos' %}" method="POST" enctype="multipart/form-data">
-                        {% csrf_token %}
-                        
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Select Site / Tower ID</label>
-                                <select class="form-select" name="site_id" required>
-                                    <option value="" selected disabled>Choose a site...</option>
-                                    {% for site in sites %}
-                                    <option value="{{ site.id }}">{{ site.site_id }} - {{ site.site_name }}</option>
-                                    {% empty %}
-                                    <option value="" disabled>No sites available/assigned to you</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Photo Category</label>
-                                <select class="form-select" name="category" required>
-                                    <option value="" selected disabled>Select category...</option>
-                                    <option value="Tower Base">Tower Base</option>
-                                    <option value="Antennas">Antennas / RRUs</option>
-                                    <option value="Equipment Cabinet">Equipment Cabinet</option>
-                                    <option value="Grounding">Grounding & Power</option>
-                                    <option value="Panoramic View">Panoramic View</option>
-                                    <option value="Other">Other (Specify in notes)</option>
-                                </select>
-                            </div>
-                        </div>
+        <div class="row mb-4 align-items-center">
+            <div class="col-md-6">
+                <h2 class="fw-bold mb-3 mb-md-0"><i class="fas fa-list me-2 text-info"></i> Assigned Sites</h2>
+            </div>
+            <div class="col-md-6">
+                <form method="GET" action="{% url 'site_visit_list' %}">
+                    <div class="input-group">
+                        <input type="text" name="search" value="{{ request.GET.search }}" class="form-control search-bar" placeholder="Search Site ID, Name, or Location...">
+                        <button class="btn btn-primary px-4" type="submit">Search</button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
-                        <div class="mb-4">
-                            <label class="form-label fw-semibold">Select Photos (Batch Upload enabled)</label>
-                            <div class="upload-area position-relative">
-                                <i class="fas fa-images fs-1 text-info mb-3" id="uploadIcon"></i>
-                                <h5 id="uploadText">Drag & drop photos here</h5>
-                                <p class="text-muted small" id="uploadSubText">or click to browse from your device (Max 50 files)</p>
-                                <input type="file" name="site_images" id="fileInput" class="form-control position-absolute top-0 start-0 w-100 h-100" style="opacity: 0; cursor: pointer;" multiple accept="image/*" required>
-                            </div>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label fw-semibold">Additional Notes (Optional)</label>
-                            <textarea class="form-control" name="notes" rows="3" placeholder="Any specific issues or details for the QA team?"></textarea>
-                        </div>
-
-                        <div class="d-flex justify-content-end gap-3">
-                            <a href="{% url 'dashboard_home' %}" class="btn btn-outline-secondary px-4">Cancel</a>
-                            <button type="submit" class="btn btn-primary px-5 fw-bold"><i class="fas fa-upload me-2"></i> Submit Photos</button>
-                        </div>
-                    </form>
-                </div>
+        <div class="card p-0 shadow-sm overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0 align-middle">
+                    <thead>
+                        <tr>
+                            <th class="ps-4 py-3">Site ID</th>
+                            <th class="py-3">Site Name</th>
+                            <th class="py-3">Location</th>
+                            <th class="pe-4 py-3 text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in reports %}
+                        <tr>
+                            <td class="ps-4 fw-bold text-primary">{{ report.site.site_id }}</td>
+                            <td>{{ report.site.site_name }}</td>
+                            <td><i class="fas fa-map-marker-alt text-muted me-2"></i>{{ report.site.location }}</td>
+                            <td class="pe-4 text-end">
+                                {% if report.status == 'not_visited' %}
+                                    <a href="{% url 'start_visit' report.id %}" class="btn btn-sm btn-warning fw-bold"><i class="fas fa-map-marker-alt me-1"></i> Check-In on Site</a>
+                                {% else %}
+                                    <span class="badge bg-success me-3"><i class="fas fa-circle ms-1 small"></i> On Site</span>
+                                    <a href="{% url 'upload_photos' %}" class="btn btn-sm btn-outline-info fw-semibold"><i class="fas fa-camera me-1"></i> Upload Photos</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center py-5 text-muted">
+                                <i class="fas fa-search mb-3 fs-2 opacity-50"></i>
+                                <h5>No sites found</h5>
+                                <p class="mb-0">Try adjusting your search criteria or assign a site.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // NEW: This script listens for files being selected and instantly updates the visual text!
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            const fileCount = e.target.files.length;
-            const uploadText = document.getElementById('uploadText');
-            const uploadSubText = document.getElementById('uploadSubText');
-            const uploadIcon = document.getElementById('uploadIcon');
-            
-            if (fileCount > 0) {
-                // If they picked files, change the text to green and show the count
-                uploadText.innerText = fileCount + ' photo(s) selected and ready!';
-                uploadText.className = 'text-success fw-bold';
-                uploadIcon.className = 'fas fa-check-circle fs-1 text-success mb-3';
-                uploadSubText.innerText = 'Click again if you need to change your selection.';
-            } else {
-                // If they cancelled, revert back to the original text
-                uploadText.innerText = 'Drag & drop photos here';
-                uploadText.className = '';
-                uploadIcon.className = 'fas fa-images fs-1 text-info mb-3';
-                uploadSubText.innerText = 'or click to browse from your device (Max 50 files)';
-            }
-        });
-    </script>
 </body>
 </html>

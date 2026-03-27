@@ -52,27 +52,35 @@
                 </a>
             </div>
             
-            <div class="d-none d-md-flex w-25">
-                 <div class="input-group">
+            <div class="d-none d-md-flex w-50 justify-content-end align-items-center">
+                 <div class="input-group w-50 me-4">
                      <span class="input-group-text bg-transparent border-end-0 border-secondary text-muted"><i class="fas fa-search"></i></span>
                      <input type="text" class="form-control search-bar border-start-0 pl-0" placeholder="Search Tower ID or Location...">
+                 </div>
+                 <div class="text-light fw-semibold border-start border-secondary ps-4">
+                     <i class="fas fa-hand-wave text-warning me-1"></i> Welcome, {{ user.first_name|default:user.username|title }}!
                  </div>
             </div>
         </div>
     </nav>
 
     <div class="offcanvas offcanvas-start" tabindex="-1" id="sideMenu">
-        <div class="offcanvas-header border-bottom border-secondary pb-3 mt-2">
-            <div class="d-flex align-items-center gap-2 px-2">
-                <img src="{% static 'images/stratix-logo.png' %}" alt="Stratix" height="40">
-                <span class="fw-bold fs-4 stratix-text">STRATIX</span>
+        <div class="offcanvas-header border-bottom border-secondary pb-3 mt-2 flex-column align-items-start">
+            <div class="d-flex align-items-center justify-content-between w-100">
+                <div class="d-flex align-items-center gap-2 px-2">
+                    <img src="{% static 'images/stratix-logo.png' %}" alt="Stratix" height="40">
+                    <span class="fw-bold fs-4 stratix-text">STRATIX</span>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
             </div>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+            <div class="px-2 mt-3 text-info fw-semibold fs-6">
+                <i class="fas fa-user-circle me-2"></i>User: {{ user.username|title }}
+            </div>
         </div>
         <div class="offcanvas-body d-flex flex-column p-4">
             <ul class="nav flex-column mb-auto fs-6 fw-semibold">
-                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'dashboard' %}"><i class="fas fa-chart-line me-3 text-primary"></i> Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="#"><i class="fas fa-list me-3 text-info"></i> Site Visit List</a></li>
+                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'dashboard_home' %}"><i class="fas fa-chart-line me-3 text-primary"></i> Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'site_visit_list' %}"><i class="fas fa-list me-3 text-info"></i> Site Visit List</a></li>
                 <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="#"><i class="fas fa-tools me-3 text-warning"></i> Rework Log</a></li>
                 <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="#"><i class="fas fa-exclamation-triangle me-3 text-danger"></i> Error Log</a></li>
                 <li class="nav-item mt-3 border-top border-secondary pt-3"><a class="nav-link text-warning py-2 px-3" href="{% url 'admin:index' %}"><i class="fas fa-user-shield me-3"></i> Admin Panel</a></li>
@@ -86,7 +94,7 @@
                 <button class="btn btn-outline-info w-100 text-start fw-semibold py-2"><i class="fas fa-file-import me-2"></i> Import Excel</button>
             </div>
 
-            <a href="#" class="btn btn-danger mt-4 py-2 fw-semibold"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
+            <a href="{% url 'logout' %}" class="btn btn-danger mt-4 py-2 fw-semibold"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
         </div>
     </div>
 
