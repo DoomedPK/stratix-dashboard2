@@ -18,7 +18,14 @@ urlpatterns = [
     path('rework-log/', views.rework_log, name='rework_log'),
     path('rework-upload/<int:photo_id>/', views.rework_upload, name='rework_upload'),
     
-    # NEW: QA Validation Hub
+    # QA Validation Hub
     path('qa-hub/', views.qa_hub, name='qa_hub'),
     path('qa-review/<int:site_id>/', views.qa_review, name='qa_review'),
+    
+    # Technical Report Writer Hub
+    path('tech-writer-hub/', views.tech_writer_hub, name='tech_writer_hub'),
+    path('draft-report/<int:report_id>/', views.draft_report, name='draft_report'),
+    
+    # NEW: Background API for Live Pop-Up Notifications
+    path('api/alerts/', views.api_check_alerts, name='api_check_alerts'),
 ]

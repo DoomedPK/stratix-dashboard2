@@ -1,0 +1,92 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Draft Report | Stratix</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #0f172a; color: #f1f5f9; padding-top: 80px; }
+        .navbar { background-color: #1e2937; border-bottom: 1px solid #334155; }
+        .card { background-color: #1e2937; border: 1px solid #334155; color: #f1f5f9; border-radius: 12px;}
+        .text-muted { color: #94a3b8 !important; }
+        .gallery-img { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; border: 1px solid #334155; transition: 0.3s;}
+        .gallery-img:hover { transform: scale(1.02); cursor: pointer; }
+        .form-control { background-color: #0f172a; border: 1px solid #334155; color: white; }
+        .form-control:focus { background-color: #0f172a; color: white; border-color: #38bdf8; box-shadow: none; }
+        .upload-area { border: 2px dashed #3b82f6; border-radius: 12px; padding: 40px; text-align: center; background-color: #0f172a; transition: 0.3s;}
+    </style>
+</head>
+<body>
+    <nav class="navbar fixed-top">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="{% url 'dashboard_home' %}">
+                <span class="fw-bold fs-4 text-white">STRATIX</span>
+            </a>
+            <a href="{% url 'tech_writer_hub' %}" class="btn btn-sm btn-outline-light">Back to Tech Hub</a>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <div class="row g-4">
+            
+            <div class="col-lg-7">
+                <h4 class="fw-bold mb-3"><i class="fas fa-images me-2 text-info"></i> Approved Site Photos</h4>
+                <div class="card p-4 shadow-sm h-100">
+                    <p class="text-muted small mb-4">Click any image to open full resolution in a new tab for drafting reference.</p>
+                    <div class="row g-3">
+                        {% for photo in photos %}
+                        <div class="col-md-6">
+                            <a href="{{ photo.image.url }}" target="_blank">
+                                <img src="{{ photo.image.url }}" class="gallery-img" alt="Site Photo">
+                            </a>
+                            <div class="p-2 mt-1 bg-dark rounded border border-secondary small text-muted">
+                                <strong>QA Notes:</strong> {{ photo.qa_feedback|default:"No notes." }}
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-center text-muted py-5">
+                            <i class="fas fa-camera-slash fs-1 mb-2"></i>
+                            <p>No photos available for this site.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-5">
+                <h4 class="fw-bold mb-3"><i class="fas fa-file-pdf me-2 text-danger"></i> Submit Final Report</h4>
+                <div class="card p-4 shadow-sm h-100 border-primary border-opacity-50">
+                    <div class="alert alert-info bg-transparent border-info text-info mb-4">
+                        <strong>Site:</strong> {{ report.site.site_id }} <br>
+                        <strong>Client:</strong> {{ report.site.project.client.name }}
+                    </div>
+
+                    <form action="{% url 'draft_report' report.id %}" method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Upload Finished PDF</label>
+                            <div class="upload-area position-relative">
+                                <i class="fas fa-cloud-upload-alt fs-1 text-primary mb-3"></i>
+                                <h5>Select PDF File</h5>
+                                <input type="file" name="final_document" class="form-control position-absolute top-0 start-0 w-100 h-100" style="opacity: 0; cursor: pointer;" accept=".pdf,.doc,.docx" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Internal Notes / Summary (Optional)</label>
+                            <textarea class="form-control" name="comments" rows="4" placeholder="Note any specific tower conditions highlighted in the report..."></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 fw-bold py-2"><i class="fas fa-paper-plane me-2"></i> Submit to Client Portal</button>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>

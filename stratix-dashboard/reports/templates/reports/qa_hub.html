@@ -65,11 +65,24 @@
         </div>
         <div class="offcanvas-body d-flex flex-column p-4">
             <ul class="nav flex-column mb-auto fs-6 fw-semibold">
-                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'dashboard_home' %}"><i class="fas fa-chart-line me-3 text-primary"></i> Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'site_visit_list' %}"><i class="fas fa-list me-3 text-info"></i> Site Visit List</a></li>
-                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'rework_log' %}"><i class="fas fa-tools me-3 text-warning"></i> Rework Log</a></li>
-                <li class="nav-item"><a class="nav-link text-warning py-2 px-3 bg-secondary bg-opacity-25" href="{% url 'qa_hub' %}"><i class="fas fa-clipboard-check me-3"></i> QA Validation Hub</a></li>
-                <li class="nav-item mt-3 border-top border-secondary pt-3"><a class="nav-link text-warning py-2 px-3" href="{% url 'admin:index' %}"><i class="fas fa-user-shield me-3"></i> Admin Panel</a></li>
+            <li class="nav-item"><a class="nav-link text-warning py-2 px-3 bg-secondary bg-opacity-25" href="{% url 'dashboard_home' %}"><i class="fas fa-chart-line me-3"></i> Dashboard</a></li>
+            <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'site_visit_list' %}"><i class="fas fa-list me-3 text-info"></i> Site Visit List</a></li>
+                
+            {% if user.is_superuser or user.profile.role == 'Contractor' or user.profile.role == 'Admin' %}
+            <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'rework_log' %}"><i class="fas fa-tools me-3 text-warning"></i> Rework Log</a></li>
+            {% endif %}
+
+            {% if user.is_superuser or user.profile.role == 'Admin' or user.profile.role == 'QA' %}
+            <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'qa_hub' %}"><i class="fas fa-clipboard-check me-3 text-success"></i> QA Validation Hub</a></li>
+            {% endif %}
+
+            {% if user.is_superuser or user.profile.role == 'Admin' or user.profile.role == 'QA' or user.profile.role == 'Tech Writer' %}
+            <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'tech_writer_hub' %}"><i class="fas fa-file-signature me-3 text-primary"></i> Tech Writer Hub</a></li>
+            {% endif %}
+
+            {% if user.is_superuser or user.profile.role == 'Admin' %}
+            <li class="nav-item mt-3 border-top border-secondary pt-3"><a class="nav-link text-danger py-2 px-3" href="{% url 'admin:index' %}"><i class="fas fa-user-shield me-3"></i> Admin Panel</a></li>
+            {% endif %}
             </ul>
             <a href="{% url 'logout' %}" class="btn btn-danger mt-auto py-2 fw-semibold"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
         </div>

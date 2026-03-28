@@ -5,6 +5,8 @@ from django.dispatch import receiver
 
 class Client(models.Model):
     name = models.CharField(max_length=200, unique=True)
+    email = models.EmailField(max_length=254, null=True, blank=True)
+    location = models.CharField(max_length=100, default='Unknown')
 
     def __str__(self):
         return self.name
@@ -22,15 +24,16 @@ class Project(models.Model):
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     client = models.ForeignKey(Client, on_delete=models.SET_NULL, null=True, blank=True)
-    role = models.CharField(max_length=20, choices=[
+    role = models.CharField(max_length=50, choices=[
         ('Admin', 'Admin'), 
         ('Client', 'Client'), 
         ('Contractor', 'Contractor'),
         ('QA', 'QA'),
+        ('Tech Writer', 'Technical Report Writer'), # UPDATED
     ], default='Client')
 
     def __str__(self):
-        return f"{self.user.username} - {self.role}"
+        return f"{self.user.username} - {self.get_role_display()}"
 
 class Site(models.Model):
     site_id = models.CharField(max_length=100, unique=True)
@@ -40,7 +43,6 @@ class Site(models.Model):
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     
-    # Updated to ManyToMany for multiple contractors
     assigned_contractors = models.ManyToManyField(
         User, 
         blank=True, 
@@ -52,14 +54,13 @@ class Site(models.Model):
     def __str__(self):
         return f"{self.site_id} - {self.site_name}"
 
-# ADDED THESE BACK IN:
 class Report(models.Model):
     site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='reports')
-    contractor = models.ForeignKey(User, on_delete=models.CASCADE)
     submitted_at = models.DateTimeField(auto_now_add=True)
     comments = models.TextField(blank=True)
+    
+    final_document = models.FileField(upload_to='final_reports/%Y/%m/', blank=True, null=True)
 
-    # NEW: Status field with your director's exact statuses + color coding ready
     STATUS_CHOICES = [
         ('not_visited', 'Not Visited'),
         ('visit_in_progress', 'Visit In Progress'),
@@ -75,7 +76,8 @@ class Report(models.Model):
     )
 
     def __str__(self):
-        return f"Report for {self.site.site_id} by {self.contractor.username}"
+        return f"Report for {self.site.site_id}"
+
 class Photo(models.Model):
     report = models.ForeignKey(Report, on_delete=models.CASCADE, related_name='photos')
     image = models.ImageField(upload_to='site_photos/')
@@ -85,7 +87,6 @@ class Photo(models.Model):
         return f"Photo for {self.report.site.site_id}"
 
 class SitePhoto(models.Model):
-    # These are the statuses the QA can choose from
     STATUS_CHOICES = [
         ('PENDING', 'Pending Validation'),
         ('APPROVED', 'Approved'),
@@ -96,33 +97,22 @@ class SitePhoto(models.Model):
     contractor = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'groups__name': 'Contractors'})
     image = models.ImageField(upload_to='site_photos/%Y/%m/%d/')
     
-    # QA Assessment fields
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     qa_feedback = models.TextField(blank=True, null=True, help_text="Reason for rework if rejected.")
-    
-    # Timestamps
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Photo for {self.site.site_id} by {self.contractor.username} - {self.status}"
 
 class ActivityAlert(models.Model):
-    # The actual alert message
     message = models.CharField(max_length=255)
-    
-    # The contractor who triggered the alert
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='triggered_alerts')
-    
-    # The site this alert is about
     site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='site_alerts')
-    
-    # Automatically records exactly when this happened
     timestamp = models.DateTimeField(auto_now_add=True)
     
-    # We can use this later to filter alerts specifically for QAs, Clients, etc.
     alert_type = models.CharField(max_length=50, choices=[
         ('CHECK_IN', 'Contractor Checked In'),
-        ('UPLOAD', 'Photos Uploaded'),
+        ('UPLOAD', 'Photos/Reports Uploaded'),
         ('REWORK', 'Rework Requested'),
     ], default='CHECK_IN')
 
@@ -132,32 +122,24 @@ class ActivityAlert(models.Model):
 # ==========================================
 # AUTOMATED BACKGROUND SCRIPTS (SIGNALS)
 # ==========================================
-
-# 1. Automatically create a blank UserProfile whenever a new User is created
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
         UserProfile.objects.get_or_create(user=instance)
 
-# 2. Automatically sync the "Role" dropdown to the actual Django security "Group"
 @receiver(post_save, sender=UserProfile)
 def sync_role_and_group(sender, instance, **kwargs):
-    # Map your simple dropdown roles to actual group names
     role_to_group = {
         'Admin': 'Admins',
         'Client': 'Clients',
         'Contractor': 'Contractors',
-        'QA': 'QAs'
+        'QA': 'QAs',
+        'Tech Writer': 'Technical Report Writers' # UPDATED
     }
     
     group_name = role_to_group.get(instance.role)
     
     if group_name:
-        # Grab the group from the database, or create it silently if it's missing!
         group, _ = Group.objects.get_or_create(name=group_name)
-        
-        # Clear any old groups so someone can't be a Client and a QA at the same time
         instance.user.groups.clear()
-        
-        # Lock them into their new group
         instance.user.groups.add(group)

@@ -26,7 +26,7 @@
         .search-bar { background-color: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px;}
         .search-bar:focus { background-color: #0f172a; color: white; border-color: #38bdf8; box-shadow: none; }
         .search-bar::placeholder { color: #64748b; }
-        
+
         .table-dark { background-color: transparent; }
         .table-dark th { background-color: #1e2937; border-bottom: 2px solid #334155; color: #94a3b8; text-transform: uppercase; font-size: 0.85rem;}
         .table-dark td { background-color: #1e2937; border-bottom: 1px solid #334155; vertical-align: middle;}
@@ -47,10 +47,10 @@
             </div>
             
             <div class="d-none d-md-flex w-50 justify-content-end align-items-center">
-                 <div class="input-group w-50 me-4">
+                 <form class="input-group w-50 me-4" method="GET" action="{% url 'site_visit_list' %}">
                      <span class="input-group-text bg-transparent border-end-0 border-secondary text-muted"><i class="fas fa-search"></i></span>
-                     <input type="text" class="form-control search-bar border-start-0 pl-0" placeholder="Search Tower ID or Location...">
-                 </div>
+                     <input type="text" name="search" class="form-control search-bar border-start-0 pl-0" placeholder="Search Projects or Sites..." value="{{ request.GET.search }}">
+                 </form>
                  <div class="text-light fw-semibold border-start border-secondary ps-4">
                      <i class="fas fa-hand-wave text-warning me-1"></i> Welcome, {{ user.first_name|default:user.username|title }}!
                  </div>
@@ -68,43 +68,39 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
             </div>
             <div class="px-2 mt-3 text-info fw-semibold fs-6">
-                <i class="fas fa-user-circle me-2"></i>User: {{ user.username|title }}
+                <i class="fas fa-user-circle me-2"></i>User: {{ user.username|title }} ({{ user.profile.get_role_display }})
             </div>
         </div>
         <div class="offcanvas-body d-flex flex-column p-4">
             <ul class="nav flex-column mb-auto fs-6 fw-semibold">
                 <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'dashboard_home' %}"><i class="fas fa-chart-line me-3 text-primary"></i> Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'site_visit_list' %}"><i class="fas fa-list me-3 text-info"></i> Site Visit List</a></li>
+                <li class="nav-item"><a class="nav-link text-warning py-2 px-3 bg-secondary bg-opacity-25" href="{% url 'site_visit_list' %}"><i class="fas fa-list me-3"></i> Site Visit List</a></li>
+                
+                {% if user.is_superuser or user.profile.role == 'Contractor' or user.profile.role == 'Admin' %}
                 <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'rework_log' %}"><i class="fas fa-tools me-3 text-warning"></i> Rework Log</a></li>
-                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="#"><i class="fas fa-exclamation-triangle me-3 text-danger"></i> Error Log</a></li>
-                {% if user.is_superuser or user.profile.role == 'Admin' or user.profile.role == 'QA' %}
-                <li class="nav-item"><a class="nav-link text-warning py-2 px-3" href="{% url 'qa_hub' %}"><i class="fas fa-clipboard-check me-3"></i> QA Validation Hub</a></li>
-                <li class="nav-item mt-3 border-top border-secondary pt-3"><a class="nav-link text-danger py-2 px-3" href="{% url 'admin:index' %}"><i class="fas fa-user-shield me-3"></i> Admin Panel</a></li>
-            {% endif %}
-            </ul>
+                {% endif %}
 
-            <div class="mt-4 pt-4 border-top border-secondary">
-                <p class="text-muted text-uppercase small fw-bold mb-3 px-2">Data Management</p>
-                <a href="{% url 'upload_photos' %}" class="btn btn-primary w-100 mb-2 text-start fw-semibold py-2"><i class="fas fa-camera me-2"></i> Upload Photos (20+)</a>
-                <button class="btn btn-outline-success w-100 mb-2 text-start fw-semibold py-2"><i class="fas fa-file-excel me-2"></i> Export Excel</button>
-                <button class="btn btn-outline-info w-100 text-start fw-semibold py-2"><i class="fas fa-file-import me-2"></i> Import Excel</button>
-            </div>
-            <a href="{% url 'logout' %}" class="btn btn-danger mt-4 py-2 fw-semibold"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
+                {% if user.is_superuser or user.profile.role == 'Admin' or user.profile.role == 'QA' %}
+                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'qa_hub' %}"><i class="fas fa-clipboard-check me-3 text-success"></i> QA Validation Hub</a></li>
+                {% endif %}
+
+                {% if user.is_superuser or user.profile.role == 'Admin' or user.profile.role == 'QA' or user.profile.role == 'Tech Writer' %}
+                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'tech_writer_hub' %}"><i class="fas fa-file-signature me-3 text-primary"></i> Tech Writer Hub</a></li>
+                {% endif %}
+
+                {% if user.is_superuser or user.profile.role == 'Admin' %}
+                <li class="nav-item mt-3 border-top border-secondary pt-3"><a class="nav-link text-danger py-2 px-3" href="{% url 'admin:index' %}"><i class="fas fa-user-shield me-3"></i> Admin Panel</a></li>
+                {% endif %}
+            </ul>
+            <a href="{% url 'logout' %}" class="btn btn-danger mt-auto py-2 fw-semibold"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
         </div>
     </div>
 
     <div class="container py-4">
         <div class="row mb-4 align-items-center">
-            <div class="col-md-6">
-                <h2 class="fw-bold mb-3 mb-md-0"><i class="fas fa-list me-2 text-info"></i> Assigned Sites</h2>
-            </div>
-            <div class="col-md-6">
-                <form method="GET" action="{% url 'site_visit_list' %}">
-                    <div class="input-group">
-                        <input type="text" name="search" value="{{ request.GET.search }}" class="form-control search-bar" placeholder="Search Site ID, Name, or Location...">
-                        <button class="btn btn-primary px-4" type="submit">Search</button>
-                    </div>
-                </form>
+            <div class="col-md-12">
+                <h2 class="fw-bold mb-3 mb-md-0"><i class="fas fa-list-alt me-2 text-info"></i> Project Directory</h2>
+                <p class="text-muted">Tracking table for all active and completed cell sites.</p>
             </div>
         </div>
 
@@ -114,8 +110,9 @@
                     <thead>
                         <tr>
                             <th class="ps-4 py-3">Site ID</th>
-                            <th class="py-3">Site Name</th>
+                            <th class="py-3">Project / Name</th>
                             <th class="py-3">Location</th>
+                            <th class="py-3">Status</th>
                             <th class="pe-4 py-3 text-end">Action</th>
                         </tr>
                     </thead>
@@ -123,25 +120,49 @@
                         {% for report in reports %}
                         <tr>
                             <td class="ps-4 fw-bold text-primary">{{ report.site.site_id }}</td>
-                            <td>{{ report.site.site_name }}</td>
+                            <td>
+                                <div class="fw-semibold text-light">{{ report.site.project.name }}</div>
+                                <div class="small text-muted">{{ report.site.site_name }}</div>
+                            </td>
                             <td><i class="fas fa-map-marker-alt text-muted me-2"></i>{{ report.site.location }}</td>
-                            <td class="pe-4 text-end">
+                            <td>
                                 {% if report.status == 'not_visited' %}
-                                    <a href="{% url 'start_visit' report.id %}" class="btn btn-sm btn-warning fw-bold"><i class="fas fa-map-marker-alt me-1"></i> Check-In on Site</a>
+                                    <span class="badge bg-secondary">Not Visited</span>
                                 {% elif report.status == 'visit_in_progress' %}
-                                    <span class="badge bg-success me-3"><i class="fas fa-circle ms-1 small"></i> On Site</span>
-                                    <a href="{% url 'upload_photos' %}" class="btn btn-sm btn-outline-info fw-semibold"><i class="fas fa-camera me-1"></i> Upload Photos</a>
+                                    <span class="badge bg-warning text-dark"><i class="fas fa-hard-hat me-1"></i> Contractor On Site</span>
+                                {% elif report.status == 'submitted' %}
+                                    <span class="badge bg-success"><i class="fas fa-check-double me-1"></i> Completed & Delivered</span>
                                 {% else %}
-                                    <span class="badge bg-secondary px-3 py-2"><i class="fas fa-check-double me-1"></i> QA Passed / Completed</span>
+                                    <span class="badge bg-info"><i class="fas fa-spinner fa-spin me-1"></i> Validation / Drafting</span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4 text-end">
+                                {% if user.profile.role == 'Client' %}
+                                    {% if report.status == 'submitted' and report.final_document %}
+                                        <a href="{{ report.final_document.url }}" target="_blank" class="btn btn-sm btn-success fw-bold"><i class="fas fa-file-pdf me-1"></i> Download Report</a>
+                                    {% else %}
+                                        <span class="text-muted small fst-italic">Pending Completion</span>
+                                    {% endif %}
+                                    
+                                {% else %}
+                                    {% if report.status == 'not_visited' %}
+                                        <a href="{% url 'start_visit' report.id %}" class="btn btn-sm btn-warning fw-bold text-dark"><i class="fas fa-map-marker-alt me-1"></i> Check-In</a>
+                                    {% elif report.status == 'visit_in_progress' %}
+                                        <a href="{% url 'upload_photos' %}" class="btn btn-sm btn-outline-info fw-semibold"><i class="fas fa-camera me-1"></i> Upload Photos</a>
+                                    {% elif report.status == 'submitted' and report.final_document %}
+                                        <a href="{{ report.final_document.url }}" target="_blank" class="btn btn-sm btn-success fw-bold"><i class="fas fa-file-pdf me-1"></i> View Report</a>
+                                    {% else %}
+                                        <span class="badge bg-secondary px-3 py-2"><i class="fas fa-lock me-1"></i> Locked for QA/Drafting</span>
+                                    {% endif %}
                                 {% endif %}
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="4" class="text-center py-5 text-muted">
-                                <i class="fas fa-search mb-3 fs-2 opacity-50"></i>
-                                <h5>No sites found</h5>
-                                <p class="mb-0">Try adjusting your search criteria or assign a site.</p>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="fas fa-folder-open mb-3 fs-2 text-muted opacity-75"></i>
+                                <h5>No sites available</h5>
+                                <p class="mb-0">There are no sites assigned to you or your company at this time.</p>
                             </td>
                         </tr>
                         {% endfor %}

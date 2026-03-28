@@ -2,45 +2,109 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.db.models import Q
-from .models import Site, SitePhoto, Report, ActivityAlert
+from .models import Site, SitePhoto, Report, ActivityAlert, Project
+from django.http import JsonResponse
+from django.utils.timezone import now
+import datetime
 
-def dashboard(request):
-    total_sites = Site.objects.count()
+@login_required
+def dashboard_home(request):
+    user = request.user
     
-    pending_photos = SitePhoto.objects.filter(status='PENDING').count()
-    approved_photos = SitePhoto.objects.filter(status='APPROVED').count()
-    rework_photos = SitePhoto.objects.filter(status='REJECTED').count()
+    # 1. Establish the "Base" permissions (What is this user allowed to see?)
+    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer']):
+        base_sites = Site.objects.all()
+        base_reports = Report.objects.all()
+        available_projects = Project.objects.all()
+    elif hasattr(user, 'profile') and user.profile.role == 'Client':
+        base_sites = Site.objects.filter(project__client=user.profile.client)
+        base_reports = Report.objects.filter(site__in=base_sites)
+        available_projects = Project.objects.filter(client=user.profile.client)
+    else:
+        base_sites = Site.objects.filter(assigned_contractors=user)
+        base_reports = Report.objects.filter(site__in=base_sites)
+        available_projects = Project.objects.filter(sites__in=base_sites).distinct()
+
+    # 2. APPLY THE NEW PROJECT FILTER
+    selected_project_id = request.GET.get('project')
+    if selected_project_id:
+        sites = base_sites.filter(project_id=selected_project_id)
+        reports = base_reports.filter(site__project_id=selected_project_id)
+        current_project = available_projects.filter(id=selected_project_id).first()
+    else:
+        sites = base_sites
+        reports = base_reports
+        current_project = None
+
+    # 3. FETCH ROLE-SPECIFIC NOTIFICATIONS (THE BELL)
+    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA']):
+        recent_alerts = ActivityAlert.objects.all().order_by('-timestamp')[:6]
+    elif hasattr(user, 'profile') and user.profile.role == 'Client':
+        # Clients only want to be alerted when a final PDF is dropped
+        recent_alerts = ActivityAlert.objects.filter(site__in=base_sites, alert_type='UPLOAD', message__icontains='Final').order_by('-timestamp')[:6]
+    elif hasattr(user, 'profile') and user.profile.role == 'Tech Writer':
+        # Writers only care when QA says it is ready for drafting
+        recent_alerts = ActivityAlert.objects.filter(message__icontains='technical writing').order_by('-timestamp')[:6]
+    else:
+        # Contractors want to know about reworks
+        recent_alerts = ActivityAlert.objects.filter(site__in=base_sites).order_by('-timestamp')[:6]
+
+    # 4. CALCULATE THE 8 METRICS (These now automatically adapt to the Project Filter!)
+    total_sites_received = sites.count()
+    total_reports_completed = reports.filter(status='submitted').count()
+    total_reports_needs_completion = total_sites_received - total_reports_completed
+    
+    visits_completed = reports.filter(status__in=['site_data_submitted', 'qa_validation', 'engineer_review', 'submitted']).count()
+    reports_in_progress = reports.filter(status__in=['site_data_submitted', 'engineer_review']).count()
+    
+    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role == 'Client'):
+        pending_photos_validation = SitePhoto.objects.filter(site__in=sites, status='PENDING').count()
+    else:
+        pending_photos_validation = SitePhoto.objects.filter(status='PENDING').count()
+        
+    pending_report_validation = reports.filter(status='engineer_review').count()
+
+    # 5. RESTORE CHART & STATUS BOARD DATA
+    chart_data = [
+        reports.filter(status='not_visited').count(),
+        reports.filter(status='visit_in_progress').count(),
+        reports.filter(status='site_data_submitted').count(),
+        reports.filter(status='qa_validation').count(),
+        reports.filter(status='engineer_review').count(),
+        reports.filter(status='submitted').count(),
+    ]
+
+    status_labels = ['Not Visited', 'Visit In Progress', 'Site Data Submitted', 'QA Validation', 'Engineer Review', 'Completed/Delivered']
+    status_colors = ['#64748b', '#f59e0b', '#0ea5e9', '#f97316', '#8b5cf6', '#10b981']
+
+    status_data = [{'count': chart_data[i], 'label': status_labels[i], 'color': status_colors[i]} for i in range(6)]
 
     status_board = [
-        {
-            'stage': 'Pending QA Validation', 
-            'count': pending_photos, 
-            'example': 'Photos uploaded by contractors, awaiting QA review.'
-        },
-        {
-            'stage': 'QA Approved', 
-            'count': approved_photos, 
-            'example': 'Photos validated. Ready for technical report writing.'
-        },
-        {
-            'stage': 'Rework Requested', 
-            'count': rework_photos, 
-            'example': 'Images rejected. Contractors need to retake photos.'
-        },
+        {'stage': 'Pending QA Validation', 'count': pending_photos_validation, 'icon': 'fa-camera', 'color': 'warning', 'example': 'Photos uploaded by contractors, awaiting QA review.'},
+        {'stage': 'Tech Drafting In Progress', 'count': reports_in_progress, 'icon': 'fa-pen-nib', 'color': 'info', 'example': 'Approved sites currently being drafted into PDF reports.'},
+        {'stage': 'Completed & Delivered', 'count': total_reports_completed, 'icon': 'fa-check-double', 'color': 'success', 'example': 'Final technical reports successfully delivered.'},
     ]
 
     context = {
-        'total_sites': total_sites,
-        'total_reports': 0, 
+        'user': user,
+        'available_projects': available_projects,
+        'current_project': current_project,
+        'recent_alerts': recent_alerts,
+        'total_sites_received': total_sites_received,
+        'total_reports_needs_completion': total_reports_needs_completion,
+        'total_reports_completed': total_reports_completed,
+        'visits_completed': visits_completed,
+        'reports_in_progress': reports_in_progress,
+        'pending_photos_validation': pending_photos_validation,
+        'pending_report_validation': pending_report_validation,
+        'status_data': status_data,
         'status_board': status_board,
     }
-    
     return render(request, 'reports/dashboard.html', context)
 
 @login_required
 def upload_photos(request):
     user = request.user
-    
     if request.method == 'POST':
         site_id = request.POST.get('site_id')
         category = request.POST.get('category')
@@ -51,10 +115,7 @@ def upload_photos(request):
             site = Site.objects.get(id=site_id)
             for image in images:
                 SitePhoto.objects.create(
-                    site=site,
-                    contractor=user,
-                    image=image,
-                    status='PENDING',
+                    site=site, contractor=user, image=image, status='PENDING',
                     qa_feedback=f"Category: {category} | Notes: {notes}"
                 )
             return redirect('site_visit_list')
@@ -69,138 +130,68 @@ def upload_photos(request):
     return render(request, 'reports/upload_photo.html', {'sites': sites})
 
 @login_required
-def dashboard_home(request):
-    user = request.user
-    
-    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA']):
-        reports = Report.objects.all()
-    else:
-        reports = Report.objects.filter(site__assigned_contractors=user)
-
-    total_reports = reports.count() or 1
-    completed = reports.filter(status='submitted').count()
-    completion_percentage = round((completed / total_reports) * 100, 1)
-
-    chart_data = [
-        reports.filter(status='not_visited').count(),
-        reports.filter(status='visit_in_progress').count(),
-        reports.filter(status='site_data_submitted').count(),
-        reports.filter(status='qa_validation').count(),
-        reports.filter(status='engineer_review').count(),
-        reports.filter(status='submitted').count(),
-    ]
-
-    status_labels = ['Not Visited', 'Visit In Progress', 'Site Data Submitted', 'QA Validation', 'Engineer Review', 'Submitted']
-    status_colors = ['secondary', 'warning', 'info', 'orange', 'primary', 'success']
-
-    status_data = [
-        {'count': chart_data[i], 'label': status_labels[i], 'color': status_colors[i]}
-        for i in range(6)
-    ]
-
-    status_board = [
-        {'stage': 'Visit', 'count': chart_data[0], 'example': 'Sites awaiting initial contractor visit'},
-        {'stage': 'Photos', 'count': chart_data[1], 'example': 'Photos uploaded, pending QA validation'},
-        {'stage': 'Drafting', 'count': chart_data[2], 'example': 'Technical report drafting in progress'},
-    ]
-
-    context = {
-        'user': user,
-        'total_sites': Site.objects.count(),
-        'total_reports': reports.count(),
-        'completed_reports': completed,
-        'completion_percentage': completion_percentage,
-        'status_data': status_data,
-        'status_board': status_board,
-    }
-    return render(request, 'reports/dashboard.html', context)
-
-@login_required
 def start_visit(request, report_id):
     report = get_object_or_404(Report, id=report_id)
     report.status = 'visit_in_progress'
     report.save()
-    
     ActivityAlert.objects.create(
-        message=f"Contractor has arrived on site and commenced the visit.",
-        user=request.user,
-        site=report.site,
-        alert_type='CHECK_IN'
+        message=f"Contractor has arrived on site.", user=request.user, site=report.site, alert_type='CHECK_IN'
     )
-    
     return redirect('site_visit_list')
 
 @login_required
 def site_visit_list(request):
     user = request.user
     
-    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA']):
+    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer']):
         reports_list = Report.objects.all()
+    elif hasattr(user, 'profile') and user.profile.role == 'Client':
+        reports_list = Report.objects.filter(site__project__client=user.profile.client)
     else:
         reports_list = Report.objects.filter(site__assigned_contractors=user)
 
     search = request.GET.get('search', '')
     if search:
-        reports_list = reports_list.filter(
-            Q(site__site_id__icontains=search) |
-            Q(site__site_name__icontains=search) |
-            Q(site__location__icontains=search)
-        )
-
+        reports_list = reports_list.filter(Q(site__site_id__icontains=search) | Q(site__site_name__icontains=search))
     return render(request, 'reports/site_list.html', {'reports': reports_list})
 
 @login_required
 def rework_log(request):
     user = request.user
-    
     if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA']):
         reworks = SitePhoto.objects.filter(status='REJECTED').order_by('-uploaded_at')
     else:
         reworks = SitePhoto.objects.filter(contractor=user, status='REJECTED').order_by('-uploaded_at')
-        
     return render(request, 'reports/rework_log.html', {'reworks': reworks})
 
 @login_required
 def rework_upload(request, photo_id):
     photo = get_object_or_404(SitePhoto, id=photo_id, status='REJECTED')
-    
     if not request.user.is_superuser and request.user != photo.contractor:
         return redirect('rework_log')
 
     if request.method == 'POST':
         new_image = request.FILES.get('replacement_image')
-        contractor_notes = request.POST.get('notes', '')
-        
+        notes = request.POST.get('notes', '')
         if new_image:
             photo.image = new_image
             photo.status = 'PENDING'
-            photo.qa_feedback = f"Rework Submitted | Notes: {contractor_notes}"
+            photo.qa_feedback = f"Rework Submitted | Notes: {notes}"
             photo.save()
-            
             ActivityAlert.objects.create(
-                message=f"Contractor uploaded a fix for a rejected photo.",
-                user=request.user,
-                site=photo.site,
-                alert_type='UPLOAD'
+                message=f"Contractor uploaded a fix.", user=request.user, site=photo.site, alert_type='UPLOAD'
             )
             return redirect('rework_log')
-
     return render(request, 'reports/rework_upload.html', {'photo': photo})
 
-# NEW: The QA Dashboard showing sites that need review
 @login_required
 def qa_hub(request):
     user = request.user
-    # Security: Bounce contractors out of this view
     if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA'])):
         return redirect('dashboard_home')
-        
-    # Grab sites that have at least one PENDING photo
     sites_needing_review = Site.objects.filter(photos__status='PENDING').distinct()
-    
     return render(request, 'reports/qa_hub.html', {'sites': sites_needing_review})
 
-# NEW: The actual review screen where QAs assess the photos
 @login_required
 def qa_review(request, site_id):
     user = request.user
@@ -211,57 +202,103 @@ def qa_review(request, site_id):
     pending_photos = SitePhoto.objects.filter(site=site, status='PENDING')
 
     if request.method == 'POST':
-        photo_id = request.POST.get('photo_id')
+        photo = get_object_or_404(SitePhoto, id=request.POST.get('photo_id'))
         action = request.POST.get('action')
-        feedback = request.POST.get('feedback', '')
-
-        photo = get_object_or_404(SitePhoto, id=photo_id)
-
+        photo.qa_feedback = request.POST.get('feedback', '')
+        
         if action == 'approve':
             photo.status = 'APPROVED'
-            photo.qa_feedback = feedback
-            photo.save()
         elif action == 'reject':
             photo.status = 'REJECTED'
-            photo.qa_feedback = feedback
-            photo.save()
-            # Alert the contractor that rework is needed
-            ActivityAlert.objects.create(
-                message=f"QA rejected a photo. Rework required.",
-                user=request.user,
-                site=site,
-                alert_type='REWORK'
-            )
+            ActivityAlert.objects.create(message="QA rejected photo.", user=request.user, site=site, alert_type='REWORK')
+        photo.save()
 
-        # --- THE LOGIC CHECK ---
-        # Are there any pending or rejected photos left for this site?
-        remaining_issues = SitePhoto.objects.filter(
-            site=site,
-            status__in=['PENDING', 'REJECTED']
-        ).count()
-
-        total_photos = SitePhoto.objects.filter(site=site).count()
-
-        # If 100% of the photos are Approved
-        if remaining_issues == 0 and total_photos > 0:
+        if SitePhoto.objects.filter(site=site, status__in=['PENDING', 'REJECTED']).count() == 0 and SitePhoto.objects.filter(site=site).count() > 0:
             report = Report.objects.filter(site=site).first()
             if report and report.status == 'visit_in_progress':
-                # Upgrade the report status!
                 report.status = 'site_data_submitted'
                 report.save()
-                
-                # Fire the final completion alert
-                ActivityAlert.objects.create(
-                    message=f"Site Data 100% Validated by QA. Ready for technical report drafting.",
-                    user=request.user,
-                    site=site,
-                    alert_type='UPLOAD'
-                )
-            return redirect('qa_hub') # Send them back to the hub if the site is finished
-
-        return redirect('qa_review', site_id=site.id) # Stay on page to review next photo
+                ActivityAlert.objects.create(message="Site Validated. Ready for technical writing.", user=request.user, site=site, alert_type='UPLOAD')
+            return redirect('qa_hub')
+        return redirect('qa_review', site_id=site.id)
 
     return render(request, 'reports/qa_review.html', {'site': site, 'photos': pending_photos})
+
+@login_required
+def tech_writer_hub(request):
+    user = request.user
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer'])):
+        return redirect('dashboard_home')
+        
+    reports_to_draft = Report.objects.filter(status='site_data_submitted')
+    return render(request, 'reports/tech_writer_hub.html', {'reports': reports_to_draft})
+
+@login_required
+def draft_report(request, report_id):
+    user = request.user
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer'])):
+        return redirect('dashboard_home')
+
+    report = get_object_or_404(Report, id=report_id)
+    approved_photos = SitePhoto.objects.filter(site=report.site, status='APPROVED')
+
+    if request.method == 'POST':
+        final_pdf = request.FILES.get('final_document')
+        comments = request.POST.get('comments', '')
+        
+        if final_pdf:
+            report.final_document = final_pdf
+            report.comments = comments
+            report.status = 'submitted' 
+            report.save()
+            
+            ActivityAlert.objects.create(
+                message="Final Technical Report uploaded.", user=request.user, site=report.site, alert_type='UPLOAD'
+            )
+            return redirect('tech_writer_hub')
+
+    return render(request, 'reports/draft_report.html', {'report': report, 'photos': approved_photos})
+
+# ==========================================
+# BACKGROUND API FOR LIVE NOTIFICATIONS
+# ==========================================
+@login_required
+def api_check_alerts(request):
+    user = request.user
+    last_check_str = request.session.get('last_alert_check')
+    
+    # Get the base alerts for this specific user role
+    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA']):
+        alerts = ActivityAlert.objects.all()
+    elif hasattr(user, 'profile') and user.profile.role == 'Client':
+        base_sites = Site.objects.filter(project__client=user.profile.client)
+        alerts = ActivityAlert.objects.filter(site__in=base_sites, alert_type='UPLOAD', message__icontains='Final')
+    elif hasattr(user, 'profile') and user.profile.role == 'Tech Writer':
+        alerts = ActivityAlert.objects.filter(message__icontains='technical writing')
+    else:
+        base_sites = Site.objects.filter(assigned_contractors=user)
+        alerts = ActivityAlert.objects.filter(site__in=base_sites)
+
+    # If they have checked before, only look for brand new alerts!
+    if last_check_str:
+        last_check = datetime.datetime.fromisoformat(last_check_str)
+        new_alerts = alerts.filter(timestamp__gt=last_check).order_by('-timestamp')
+    else:
+        # First time loading the page, don't spam them with pop-ups for old alerts
+        new_alerts = []
+
+    # Update their session with the exact time of this ping
+    request.session['last_alert_check'] = now().isoformat()
+
+    alerts_data = []
+    for a in new_alerts:
+        alerts_data.append({
+            'message': a.message,
+            'site': a.site.site_id,
+            'type': a.alert_type
+        })
+
+    return JsonResponse({'new_alerts': alerts_data})
 
 @login_required
 def custom_logout(request):
