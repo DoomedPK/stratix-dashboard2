@@ -3,6 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.db.models import Q
+from django.contrib.auth.models import User
 from .models import Site, SitePhoto, Report, ActivityAlert, Project
 from django.http import JsonResponse
 from django.utils.timezone import now
@@ -12,6 +13,7 @@ import datetime
 def dashboard_home(request):
     user = request.user
     
+    # 1. Base Permissions
     if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer']):
         base_sites = Site.objects.all()
         base_reports = Report.objects.all()
@@ -25,6 +27,7 @@ def dashboard_home(request):
         base_reports = Report.objects.filter(site__in=base_sites)
         available_projects = Project.objects.filter(sites__in=base_sites).distinct()
 
+    # 2. Project Filter
     selected_project_id = request.GET.get('project')
     if selected_project_id:
         sites = base_sites.filter(project_id=selected_project_id)
@@ -35,6 +38,7 @@ def dashboard_home(request):
         reports = base_reports
         current_project = None
 
+    # 3. Metrics
     total_sites_received = sites.count()
     total_reports_completed = reports.filter(status='submitted').count()
     total_reports_needs_completion = total_sites_received - total_reports_completed
@@ -49,6 +53,7 @@ def dashboard_home(request):
         
     pending_report_validation = reports.filter(status='engineer_review').count()
 
+    # 4. Chart & Status Board
     chart_data = [
         reports.filter(status='not_visited').count(),
         reports.filter(status='visit_in_progress').count(),
@@ -60,7 +65,6 @@ def dashboard_home(request):
 
     status_labels = ['Not Visited', 'Visit In Progress', 'Site Data Submitted', 'QA Validation', 'Engineer Review', 'Completed/Delivered']
     status_colors = ['#64748b', '#f59e0b', '#0ea5e9', '#f97316', '#8b5cf6', '#10b981']
-
     status_data = [{'count': chart_data[i], 'label': status_labels[i], 'color': status_colors[i]} for i in range(6)]
 
     status_board = [
@@ -69,16 +73,57 @@ def dashboard_home(request):
         {'stage': 'Completed & Delivered', 'count': total_reports_completed, 'icon': 'fa-check-double', 'color': 'success', 'example': 'Final technical reports successfully delivered.'},
     ]
 
-    # --- ADDED THIS FOR THE MINI MAP ---
+    # 5. Mini Map Data
     sites_data = []
     for site in sites:
-        if site.latitude and site.longitude: # Prevents crash if coordinates are missing
+        if site.latitude and site.longitude: 
             sites_data.append({
                 'name': site.site_id,
                 'lat': float(site.latitude),
                 'lng': float(site.longitude),
-                'priority': site.priority  # Changed 'status' to 'priority'
+                'priority': site.priority  
             })
+
+    # 6. Turnaround Time (TAT) Calculation
+    total_tat_days = 0
+    tat_count = 0
+    for r in reports.filter(status='submitted'):
+        final_alert = ActivityAlert.objects.filter(site=r.site, alert_type='UPLOAD', message__icontains='Final').order_by('-timestamp').first()
+        if final_alert:
+            delta = final_alert.timestamp - r.submitted_at
+            total_tat_days += delta.days
+            tat_count += 1
+            
+    avg_tat = round(total_tat_days / tat_count, 1) if tat_count > 0 else 0
+
+    # 7. Contractor Performance Tracking (Least Privilege)
+    contractor_stats = []
+    is_client_or_admin = user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Client'])
+    is_contractor = hasattr(user, 'profile') and user.profile.role == 'Contractor'
+    
+    if is_client_or_admin:
+        contractors_to_track = User.objects.filter(assigned_sites__in=sites).distinct()
+    elif is_contractor:
+        contractors_to_track = User.objects.filter(id=user.id)
+    else:
+        contractors_to_track = []
+
+    for c in contractors_to_track:
+        c_photos = SitePhoto.objects.filter(contractor=c, site__in=sites)
+        total_subs = c_photos.count()
+        reworks = c_photos.filter(status='REJECTED').count()
+        rework_rate = round((reworks / total_subs * 100), 1) if total_subs > 0 else 0
+        
+        recent_reworks = c_photos.filter(status='REJECTED').exclude(qa_feedback__isnull=True).exclude(qa_feedback='').order_by('-uploaded_at')[:2]
+        common_errors = [p.qa_feedback for p in recent_reworks] if recent_reworks else ["No frequent errors detected."]
+
+        contractor_stats.append({
+            'id': c.id,
+            'name': f"{c.first_name} {c.last_name}".strip() or c.username,
+            'total_submissions': total_subs,
+            'rework_rate': rework_rate,
+            'common_errors': common_errors
+        })
 
     context = {
         'user': user,
@@ -93,7 +138,11 @@ def dashboard_home(request):
         'pending_report_validation': pending_report_validation,
         'status_data': status_data,
         'status_board': status_board,
-        'sites_json': json.dumps(sites_data), # Map data
+        'sites_json': json.dumps(sites_data),
+        'avg_tat': avg_tat,
+        'contractor_stats': contractor_stats,
+        'show_performance': is_client_or_admin or is_contractor,
+        'is_client_or_admin': is_client_or_admin,
     }
     return render(request, 'reports/dashboard.html', context)
 
@@ -297,13 +346,12 @@ def api_check_alerts(request):
 def geographical_map_view(request):
     user = request.user
     
-    # Apply the exact same role-based filtering as your dashboard!
+    # Map Security: Users only see pins they are allowed to see
     if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer']):
         sites = Site.objects.all()
     elif hasattr(user, 'profile') and user.profile.role == 'Client':
         sites = Site.objects.filter(project__client=user.profile.client)
     else:
-        # Contractors only see what they are assigned to
         sites = Site.objects.filter(assigned_contractors=user)
     
     sites_data = []

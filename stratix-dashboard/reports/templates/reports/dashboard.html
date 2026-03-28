@@ -129,7 +129,7 @@
         </div>
 
         <div class="col-lg-7">
-            <div class="card p-4 shadow-sm h-100">
+            <div class="card p-4 shadow-sm mb-4">
                 <h5 class="fw-bold mb-4 border-bottom border-secondary pb-3"><i class="fas fa-tasks me-2 text-warning"></i> Report Status Board</h5>
                 <div class="row g-3">
                     {% for item in status_board %}
@@ -144,6 +144,60 @@
                     {% endfor %}
                 </div>
             </div>
+
+            {% if show_performance %}
+            <div class="card p-4 shadow-sm border-info-left h-auto">
+                <div class="row align-items-center mb-4">
+                    <div class="col-md-6">
+                        <h5 class="fw-bold mb-0"><i class="fas fa-stopwatch me-2 text-info"></i> Performance & Turnaround</h5>
+                        <p class="text-muted small mb-0 mt-1">Avg time to final report delivery: <strong><span class="text-white fs-5">{{ avg_tat }} Days</span></strong></p>
+                    </div>
+                    
+                    {% if is_client_or_admin %}
+                    <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                        <label class="text-light me-2 fw-semibold small text-uppercase">Review Contractor:</label>
+                        <select id="contractorSelect" class="form-select form-select-sm bg-dark text-light border-secondary d-inline-block w-auto shadow-none" onchange="showContractorStats()">
+                            <option value="">-- Select a Contractor --</option>
+                            {% for c in contractor_stats %}
+                                <option value="{{ c.id }}">{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div id="contractorStatsContainer" {% if is_client_or_admin %}style="display: none;"{% endif %}>
+                    {% for c in contractor_stats %}
+                    <div class="contractor-data row g-3 bg-dark bg-opacity-25 p-3 rounded border border-secondary" id="contractor-{{ c.id }}" {% if is_client_or_admin %}style="display: none;"{% endif %}>
+                        
+                        <div class="col-md-4 border-end border-secondary">
+                            <p class="text-muted small text-uppercase fw-bold mb-1">Contractor</p>
+                            <h5 class="text-white fw-bold mb-0"><i class="fas fa-hard-hat me-2 text-warning"></i> {{ c.name }}</h5>
+                        </div>
+                        
+                        <div class="col-md-2 border-end border-secondary text-center">
+                            <p class="text-muted small text-uppercase fw-bold mb-1">Total Submissions</p>
+                            <h4 class="text-info fw-bold mb-0">{{ c.total_submissions }}</h4>
+                        </div>
+
+                        <div class="col-md-2 border-end border-secondary text-center">
+                            <p class="text-muted small text-uppercase fw-bold mb-1">Rework Rate</p>
+                            <h4 class="{% if c.rework_rate > 20 %}text-danger{% else %}text-success{% endif %} fw-bold mb-0">{{ c.rework_rate }}%</h4>
+                        </div>
+
+                        <div class="col-md-4">
+                            <p class="text-muted small text-uppercase fw-bold mb-1">Common Errors</p>
+                            <ul class="list-unstyled small text-light mb-0" style="font-size: 0.8rem;">
+                                {% for error in c.common_errors %}
+                                    <li class="text-truncate" title="{{ error }}"><i class="fas fa-exclamation-circle text-danger me-1"></i> {{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -233,11 +287,13 @@
             setInterval(fetchAlerts, 10000);
         }, 2000);
 
-        // --- MINI MAP SCRIPT STARTS HERE ---
+        // MINI MAP SCRIPT (Using CARTO Dark Matter Tiles & site.priority)
         if (document.getElementById('miniMap')) {
             var miniMap = L.map('miniMap', { scrollWheelZoom: false }).setView([20, 0], 2);
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(miniMap);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+            }).addTo(miniMap);
 
             var sites = {{ sites_json|safe }};
             var bounds = [];
@@ -264,5 +320,23 @@
             }
         }
     });
+
+    // Contractor Search Dropdown Logic
+    function showContractorStats() {
+        var selectedId = document.getElementById("contractorSelect").value;
+        var container = document.getElementById("contractorStatsContainer");
+        
+        // Hide all contractor data rows first
+        var allData = document.querySelectorAll(".contractor-data");
+        allData.forEach(function(el) { el.style.display = "none"; });
+        
+        if (selectedId) {
+            // Show the container and the specific contractor row
+            container.style.display = "block";
+            document.getElementById("contractor-" + selectedId).style.display = "flex";
+        } else {
+            container.style.display = "none";
+        }
+    }
 </script>
 {% endblock %}

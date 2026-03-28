@@ -12,8 +12,9 @@
     document.addEventListener("DOMContentLoaded", function() {
         var map = L.map('siteMap').setView([20, 0], 2);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
+        // 1. FIXED: Using CARTO Dark Matter tiles to fix the blank screen block
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
         }).addTo(map);
 
         var sites = {{ sites_json|safe }};
@@ -21,7 +22,7 @@
 
         sites.forEach(function(site) {
             
-            // Map the colors based on PRIORITY instead of status
+            // 2. FIXED: Using site.priority instead of site.status
             var pinColor = "#28a745"; // Default Green (Low Priority)
             if (site.priority === "Medium") {
                 pinColor = "#ffc107"; // Yellow
