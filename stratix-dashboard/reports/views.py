@@ -1,3 +1,4 @@
+import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
@@ -36,20 +37,7 @@ def dashboard_home(request):
         reports = base_reports
         current_project = None
 
-    # 3. FETCH ROLE-SPECIFIC NOTIFICATIONS (THE BELL)
-    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA']):
-        recent_alerts = ActivityAlert.objects.all().order_by('-timestamp')[:6]
-    elif hasattr(user, 'profile') and user.profile.role == 'Client':
-        # Clients only want to be alerted when a final PDF is dropped
-        recent_alerts = ActivityAlert.objects.filter(site__in=base_sites, alert_type='UPLOAD', message__icontains='Final').order_by('-timestamp')[:6]
-    elif hasattr(user, 'profile') and user.profile.role == 'Tech Writer':
-        # Writers only care when QA says it is ready for drafting
-        recent_alerts = ActivityAlert.objects.filter(message__icontains='technical writing').order_by('-timestamp')[:6]
-    else:
-        # Contractors want to know about reworks
-        recent_alerts = ActivityAlert.objects.filter(site__in=base_sites).order_by('-timestamp')[:6]
-
-    # 4. CALCULATE THE 8 METRICS (These now automatically adapt to the Project Filter!)
+    # 3. CALCULATE THE 8 METRICS
     total_sites_received = sites.count()
     total_reports_completed = reports.filter(status='submitted').count()
     total_reports_needs_completion = total_sites_received - total_reports_completed
@@ -64,7 +52,7 @@ def dashboard_home(request):
         
     pending_report_validation = reports.filter(status='engineer_review').count()
 
-    # 5. RESTORE CHART & STATUS BOARD DATA
+    # 4. RESTORE CHART & STATUS BOARD DATA
     chart_data = [
         reports.filter(status='not_visited').count(),
         reports.filter(status='visit_in_progress').count(),
@@ -89,7 +77,6 @@ def dashboard_home(request):
         'user': user,
         'available_projects': available_projects,
         'current_project': current_project,
-        'recent_alerts': recent_alerts,
         'total_sites_received': total_sites_received,
         'total_reports_needs_completion': total_reports_needs_completion,
         'total_reports_completed': total_reports_completed,
@@ -259,6 +246,11 @@ def draft_report(request, report_id):
 
     return render(request, 'reports/draft_report.html', {'report': report, 'photos': approved_photos})
 
+@login_required
+def custom_logout(request):
+    logout(request)
+    return redirect('login')
+
 # ==========================================
 # BACKGROUND API FOR LIVE NOTIFICATIONS
 # ==========================================
@@ -267,7 +259,6 @@ def api_check_alerts(request):
     user = request.user
     last_check_str = request.session.get('last_alert_check')
     
-    # Get the base alerts for this specific user role
     if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA']):
         alerts = ActivityAlert.objects.all()
     elif hasattr(user, 'profile') and user.profile.role == 'Client':
@@ -279,15 +270,12 @@ def api_check_alerts(request):
         base_sites = Site.objects.filter(assigned_contractors=user)
         alerts = ActivityAlert.objects.filter(site__in=base_sites)
 
-    # If they have checked before, only look for brand new alerts!
     if last_check_str:
         last_check = datetime.datetime.fromisoformat(last_check_str)
         new_alerts = alerts.filter(timestamp__gt=last_check).order_by('-timestamp')
     else:
-        # First time loading the page, don't spam them with pop-ups for old alerts
         new_alerts = []
 
-    # Update their session with the exact time of this ping
     request.session['last_alert_check'] = now().isoformat()
 
     alerts_data = []
@@ -300,7 +288,23 @@ def api_check_alerts(request):
 
     return JsonResponse({'new_alerts': alerts_data})
 
-@login_required
-def custom_logout(request):
-    logout(request)
-    return redirect('login')
+def geographical_map_view(request):
+    # 1. Fetch all your sites
+    sites = Site.objects.all()
+    
+    # 2. Package the data into a list of dictionaries
+    sites_data = []
+    for site in sites:
+        sites_data.append({
+            'name': site.name,
+            'lat': float(site.latitude),   # Make sure these match your model's field names
+            'lng': float(site.longitude),
+            'status': site.status          # e.g., 'Good', 'Minor', 'Critical'
+        })
+    
+    # 3. Convert to JSON so JavaScript can understand it
+    context = {
+        'sites_json': json.dumps(sites_data)
+    }
+    
+    return render(request, 'geographical_map_view.html', context)

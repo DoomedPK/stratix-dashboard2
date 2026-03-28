@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<div class="container mt-4">
+    <h2>Geographical Map View</h2>
+    <p>Live status of all operational sites.</p>
+
+    <div id="siteMap" style="height: 600px; width: 100%; border-radius: 8px; border: 2px solid #ccc;"></div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // 1. Initialize the map with a general world view first (Zoom level 2)
+        var map = L.map('siteMap').setView([20, 0], 2);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        var sites = {{ sites_json|safe }};
+        
+        // Create an empty array to store the coordinates of every pin
+        var bounds = [];
+
+        sites.forEach(function(site) {
+            var pinColor = "#28a745"; 
+            if (site.status === "Minor") {
+                pinColor = "#ffc107"; 
+            } else if (site.status === "Critical" || site.status === "Major") {
+                pinColor = "#dc3545"; 
+            }
+
+            var marker = L.circleMarker([site.lat, site.lng], {
+                radius: 8, // Made the pins slightly smaller for a global view
+                fillColor: pinColor,
+                color: "#000",
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 0.9
+            }).addTo(map);
+
+            var popupContent = `
+                <b>${site.name}</b><br>
+                Status: <strong>${site.status}</strong>
+            `;
+            marker.bindPopup(popupContent);
+            
+            // Add this pin's coordinates to our bounds list
+            bounds.push([site.lat, site.lng]); 
+        });
+
+        // 2. The Magic Trick: Tell the map to fit all the pins on the screen
+        if (bounds.length > 0) {
+            map.fitBounds(bounds, { padding: [30, 30] });
+        }
+    });
+</script>
+{% endblock %}
