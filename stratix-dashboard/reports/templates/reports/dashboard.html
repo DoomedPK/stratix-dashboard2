@@ -12,7 +12,6 @@
     .border-purple-left { border-left-color: #8b5cf6 !important; }
     .border-danger-left { border-left-color: #ef4444 !important; }
     
-    /* Pulse Animation */
     .pulse-dot {
         height: 12px; width: 12px; background-color: #10b981; border-radius: 50%; display: inline-block; margin-right: 8px;
         box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); animation: pulse 2s infinite;
@@ -110,7 +109,7 @@
 
     <div class="row g-4">
         <div class="col-lg-5">
-            <div class="card p-4 shadow-sm h-100">
+            <div class="card p-4 shadow-sm mb-4">
                 <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-3 mb-4">
                     <h5 class="fw-bold mb-0"><i class="fas fa-chart-pie me-2 text-info"></i> Project Progression</h5>
                     <span class="badge bg-secondary text-light">{{ current_project.name|default:"All Projects" }}</span>
@@ -118,6 +117,14 @@
                 <div style="position: relative; height: 300px; width: 100%;">
                     <canvas id="progressionChart"></canvas>
                 </div>
+            </div>
+            
+            <div class="card p-4 shadow-sm">
+                <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-3 mb-4">
+                    <h5 class="fw-bold mb-0"><i class="fas fa-map-marked-alt me-2 text-success"></i> Global Deployment Map</h5>
+                    <a href="{% url 'global_map' %}" class="btn btn-sm btn-outline-info">Full Screen</a>
+                </div>
+                <div id="miniMap" style="height: 300px; width: 100%; border-radius: 8px; z-index: 1;"></div>
             </div>
         </div>
 
@@ -188,18 +195,14 @@
             .then(response => response.json())
             .then(data => {
                 if (data.new_alerts && data.new_alerts.length > 0) {
-                    
-                    // 1. Play the Ping Sound
                     const audio = document.getElementById('alertSound');
-                    audio.play().catch(e => console.log("Browser blocked audio until user clicks something on page."));
+                    audio.play().catch(e => console.log("Browser blocked audio."));
 
-                    // 2. Generate the visual Toast Pop-up
                     const container = document.querySelector('.toast-container');
                     
                     data.new_alerts.forEach(alert => {
                         let colorClass = 'bg-primary';
                         let icon = 'fa-bell';
-                        
                         if(alert.type === 'REWORK') { colorClass = 'bg-danger'; icon = 'fa-exclamation-triangle'; }
                         else if(alert.type === 'UPLOAD') { colorClass = 'bg-success'; icon = 'fa-check-circle'; }
 
@@ -213,13 +216,11 @@
                                 </div>
                             </div>
                         `;
-                        
                         container.insertAdjacentHTML('beforeend', toastHTML);
                         const bsToast = new bootstrap.Toast(container.lastElementChild);
                         bsToast.show();
                     });
 
-                    // 3. Add the little red dot to the bell if it isn't already there
                     const bellBtn = document.getElementById('bellIconBtn');
                     if(!document.getElementById('bellDot') && bellBtn) {
                         bellBtn.innerHTML += `<span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle" id="bellDot"><span class="visually-hidden">New alerts</span></span>`;
@@ -228,10 +229,40 @@
             });
         }
         
-        // Wait 2 seconds, then start pinging the server every 10 seconds for new alerts!
         setTimeout(function() {
             setInterval(fetchAlerts, 10000);
         }, 2000);
+
+        // --- MINI MAP SCRIPT STARTS HERE ---
+        if (document.getElementById('miniMap')) {
+            var miniMap = L.map('miniMap', { scrollWheelZoom: false }).setView([20, 0], 2);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(miniMap);
+
+            var sites = {{ sites_json|safe }};
+            var bounds = [];
+
+            sites.forEach(function(site) {
+                var pinColor = "#28a745"; // Default Green (Low Priority)
+                if (site.priority === "Medium") pinColor = "#ffc107"; // Yellow
+                else if (site.priority === "High") pinColor = "#dc3545"; // Red
+
+                L.circleMarker([site.lat, site.lng], {
+                    radius: 6,
+                    fillColor: pinColor,
+                    color: "#000",
+                    weight: 1,
+                    opacity: 1,
+                    fillOpacity: 0.9
+                }).addTo(miniMap).bindPopup(`<b>${site.name}</b><br>Priority: ${site.priority}`);
+                
+                bounds.push([site.lat, site.lng]); 
+            });
+
+            if (bounds.length > 0) {
+                miniMap.fitBounds(bounds, { padding: [20, 20] });
+            }
+        }
     });
 </script>
 {% endblock %}

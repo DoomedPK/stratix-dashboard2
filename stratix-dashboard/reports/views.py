@@ -12,7 +12,6 @@ import datetime
 def dashboard_home(request):
     user = request.user
     
-    # 1. Establish the "Base" permissions (What is this user allowed to see?)
     if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer']):
         base_sites = Site.objects.all()
         base_reports = Report.objects.all()
@@ -26,7 +25,6 @@ def dashboard_home(request):
         base_reports = Report.objects.filter(site__in=base_sites)
         available_projects = Project.objects.filter(sites__in=base_sites).distinct()
 
-    # 2. APPLY THE NEW PROJECT FILTER
     selected_project_id = request.GET.get('project')
     if selected_project_id:
         sites = base_sites.filter(project_id=selected_project_id)
@@ -37,7 +35,6 @@ def dashboard_home(request):
         reports = base_reports
         current_project = None
 
-    # 3. CALCULATE THE 8 METRICS
     total_sites_received = sites.count()
     total_reports_completed = reports.filter(status='submitted').count()
     total_reports_needs_completion = total_sites_received - total_reports_completed
@@ -52,7 +49,6 @@ def dashboard_home(request):
         
     pending_report_validation = reports.filter(status='engineer_review').count()
 
-    # 4. RESTORE CHART & STATUS BOARD DATA
     chart_data = [
         reports.filter(status='not_visited').count(),
         reports.filter(status='visit_in_progress').count(),
@@ -73,6 +69,17 @@ def dashboard_home(request):
         {'stage': 'Completed & Delivered', 'count': total_reports_completed, 'icon': 'fa-check-double', 'color': 'success', 'example': 'Final technical reports successfully delivered.'},
     ]
 
+    # --- ADDED THIS FOR THE MINI MAP ---
+    sites_data = []
+    for site in sites:
+        if site.latitude and site.longitude: # Prevents crash if coordinates are missing
+            sites_data.append({
+                'name': site.site_id,
+                'lat': float(site.latitude),
+                'lng': float(site.longitude),
+                'priority': site.priority  # Changed 'status' to 'priority'
+            })
+
     context = {
         'user': user,
         'available_projects': available_projects,
@@ -86,6 +93,7 @@ def dashboard_home(request):
         'pending_report_validation': pending_report_validation,
         'status_data': status_data,
         'status_board': status_board,
+        'sites_json': json.dumps(sites_data), # Map data
     }
     return render(request, 'reports/dashboard.html', context)
 
@@ -251,9 +259,6 @@ def custom_logout(request):
     logout(request)
     return redirect('login')
 
-# ==========================================
-# BACKGROUND API FOR LIVE NOTIFICATIONS
-# ==========================================
 @login_required
 def api_check_alerts(request):
     user = request.user
@@ -288,23 +293,31 @@ def api_check_alerts(request):
 
     return JsonResponse({'new_alerts': alerts_data})
 
+@login_required
 def geographical_map_view(request):
-    # 1. Fetch all your sites
-    sites = Site.objects.all()
+    user = request.user
     
-    # 2. Package the data into a list of dictionaries
+    # Apply the exact same role-based filtering as your dashboard!
+    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer']):
+        sites = Site.objects.all()
+    elif hasattr(user, 'profile') and user.profile.role == 'Client':
+        sites = Site.objects.filter(project__client=user.profile.client)
+    else:
+        # Contractors only see what they are assigned to
+        sites = Site.objects.filter(assigned_contractors=user)
+    
     sites_data = []
     for site in sites:
-        sites_data.append({
-            'name': site.name,
-            'lat': float(site.latitude),   # Make sure these match your model's field names
-            'lng': float(site.longitude),
-            'status': site.status          # e.g., 'Good', 'Minor', 'Critical'
-        })
-    
-    # 3. Convert to JSON so JavaScript can understand it
+        if site.latitude and site.longitude:
+            sites_data.append({
+                'name': site.site_id,
+                'lat': float(site.latitude),
+                'lng': float(site.longitude),
+                'priority': site.priority 
+            })
+            
     context = {
         'sites_json': json.dumps(sites_data)
     }
     
-    return render(request, 'geographical_map_view.html', context)
+    return render(request, 'reports/geographical_map_view.html', context)
