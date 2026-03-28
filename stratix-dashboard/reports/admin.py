@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin # <-- NEW: Import Django's secure UserAdmin
 from import_export.admin import ImportExportModelAdmin
 from .models import Client, Project, UserProfile, Site, Report, Photo, SitePhoto, ActivityAlert
 from .models import Site, SitePhoto
@@ -9,7 +10,8 @@ from .resources import SiteResource
 admin.site.unregister(User)
 
 @admin.register(User)
-class UserAdmin(admin.ModelAdmin):
+class UserAdmin(BaseUserAdmin):
+    # This keeps your custom search bar, but restores all of Django's password encryption!
     search_fields = ('username', 'first_name', 'last_name', 'email')
 
 @admin.register(Client)
@@ -74,7 +76,8 @@ class ActivityAlertAdmin(admin.ModelAdmin):
     list_filter = ('alert_type', 'site', 'user')
     
     # Adds a search bar to look up specific alerts
-    search_fields = ('user__username', 'message', 'site__site_id')
+    readonly_fields = ('timestamp', 'user', 'site', 'alert_type', 'message')
     
-    # Makes the table read-only so people don't accidentally edit history
-    readonly_fields = ('timestamp',)
+    # BONUS SECURITY: This removes the "Add" button so admins can't fake new alerts
+    def has_add_permission(self, request):
+        return False

@@ -14,6 +14,11 @@ urlpatterns = [
     # Check-in trigger
     path('start-visit/<int:report_id>/', views.start_visit, name='start_visit'),
     
-    # NEW: Rework Log
+    # Rework Log
     path('rework-log/', views.rework_log, name='rework_log'),
+    path('rework-upload/<int:photo_id>/', views.rework_upload, name='rework_upload'),
+    
+    # NEW: QA Validation Hub
+    path('qa-hub/', views.qa_hub, name='qa_hub'),
+    path('qa-review/<int:site_id>/', views.qa_review, name='qa_review'),
 ]

@@ -149,7 +149,6 @@ def site_visit_list(request):
 
     return render(request, 'reports/site_list.html', {'reports': reports_list})
 
-# NEW: The view for the Rework Log
 @login_required
 def rework_log(request):
     user = request.user
@@ -157,10 +156,112 @@ def rework_log(request):
     if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA']):
         reworks = SitePhoto.objects.filter(status='REJECTED').order_by('-uploaded_at')
     else:
-        # Contractors only see their own rejected photos
         reworks = SitePhoto.objects.filter(contractor=user, status='REJECTED').order_by('-uploaded_at')
         
     return render(request, 'reports/rework_log.html', {'reworks': reworks})
+
+@login_required
+def rework_upload(request, photo_id):
+    photo = get_object_or_404(SitePhoto, id=photo_id, status='REJECTED')
+    
+    if not request.user.is_superuser and request.user != photo.contractor:
+        return redirect('rework_log')
+
+    if request.method == 'POST':
+        new_image = request.FILES.get('replacement_image')
+        contractor_notes = request.POST.get('notes', '')
+        
+        if new_image:
+            photo.image = new_image
+            photo.status = 'PENDING'
+            photo.qa_feedback = f"Rework Submitted | Notes: {contractor_notes}"
+            photo.save()
+            
+            ActivityAlert.objects.create(
+                message=f"Contractor uploaded a fix for a rejected photo.",
+                user=request.user,
+                site=photo.site,
+                alert_type='UPLOAD'
+            )
+            return redirect('rework_log')
+
+    return render(request, 'reports/rework_upload.html', {'photo': photo})
+
+# NEW: The QA Dashboard showing sites that need review
+@login_required
+def qa_hub(request):
+    user = request.user
+    # Security: Bounce contractors out of this view
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA'])):
+        return redirect('dashboard_home')
+        
+    # Grab sites that have at least one PENDING photo
+    sites_needing_review = Site.objects.filter(photos__status='PENDING').distinct()
+    
+    return render(request, 'reports/qa_hub.html', {'sites': sites_needing_review})
+
+# NEW: The actual review screen where QAs assess the photos
+@login_required
+def qa_review(request, site_id):
+    user = request.user
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA'])):
+        return redirect('dashboard_home')
+
+    site = get_object_or_404(Site, id=site_id)
+    pending_photos = SitePhoto.objects.filter(site=site, status='PENDING')
+
+    if request.method == 'POST':
+        photo_id = request.POST.get('photo_id')
+        action = request.POST.get('action')
+        feedback = request.POST.get('feedback', '')
+
+        photo = get_object_or_404(SitePhoto, id=photo_id)
+
+        if action == 'approve':
+            photo.status = 'APPROVED'
+            photo.qa_feedback = feedback
+            photo.save()
+        elif action == 'reject':
+            photo.status = 'REJECTED'
+            photo.qa_feedback = feedback
+            photo.save()
+            # Alert the contractor that rework is needed
+            ActivityAlert.objects.create(
+                message=f"QA rejected a photo. Rework required.",
+                user=request.user,
+                site=site,
+                alert_type='REWORK'
+            )
+
+        # --- THE LOGIC CHECK ---
+        # Are there any pending or rejected photos left for this site?
+        remaining_issues = SitePhoto.objects.filter(
+            site=site,
+            status__in=['PENDING', 'REJECTED']
+        ).count()
+
+        total_photos = SitePhoto.objects.filter(site=site).count()
+
+        # If 100% of the photos are Approved
+        if remaining_issues == 0 and total_photos > 0:
+            report = Report.objects.filter(site=site).first()
+            if report and report.status == 'visit_in_progress':
+                # Upgrade the report status!
+                report.status = 'site_data_submitted'
+                report.save()
+                
+                # Fire the final completion alert
+                ActivityAlert.objects.create(
+                    message=f"Site Data 100% Validated by QA. Ready for technical report drafting.",
+                    user=request.user,
+                    site=site,
+                    alert_type='UPLOAD'
+                )
+            return redirect('qa_hub') # Send them back to the hub if the site is finished
+
+        return redirect('qa_review', site_id=site.id) # Stay on page to review next photo
+
+    return render(request, 'reports/qa_review.html', {'site': site, 'photos': pending_photos})
 
 @login_required
 def custom_logout(request):
