@@ -1,40 +1,97 @@
-{% extends 'base.html' %} {% block content %}
-<div class="container mt-4">
-    <h2>QA Review Dashboard</h2>
-    <p>Review pending submissions below.</p>
+{% extends 'base.html' %}
+{% load static %}
 
-    <div class="table-responsive">
-        <table class="table table-striped table-bordered">
-            <thead class="table-dark">
-                <tr>
-                    <th>Submission ID</th>
-                    <th>Contractor</th>
-                    <th>Date Submitted</th>
-                    <th>Current Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in review_items %}
-                <tr>
-                    <td>{{ item.id }}</td>
-                    <td>{{ item.contractor.username }}</td>
-                    <td>{{ item.submission_date|date:"M d, Y" }}</td>
-                    <td>
-                        <span class="badge bg-warning text-dark">{{ item.status }}</span>
-                    </td>
-                    <td>
-                        <a href="{% url 'approve_submission' item.id %}" class="btn btn-sm btn-success">Approve</a>
-                        <a href="{% url 'reject_submission' item.id %}" class="btn btn-sm btn-danger">Reject</a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" class="text-center">No submissions currently pending QA review.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+{% block extra_css %}
+<style>
+    .photo-card { border: 1px solid #334155; background-color: #1e2937; border-radius: 8px; overflow: hidden; }
+    .site-image { width: 100%; height: 250px; object-fit: cover; background-color: #000; cursor: pointer; transition: 0.2s;}
+    .site-image:hover { opacity: 0.8; }
+    .form-control { background-color: #0f172a; border: 1px solid #334155; color: white; }
+    .form-control:focus { background-color: #0f172a; color: white; border-color: #38bdf8; box-shadow: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <a href="{% url 'qa_hub' %}" class="btn btn-sm btn-outline-secondary mb-3"><i class="fas fa-arrow-left me-2"></i>Back to Hub</a>
+    
+    <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-3 mb-4">
+        <div>
+            <h3 class="fw-bold mb-0 text-white"><i class="fas fa-search-location text-success me-2"></i> Review: {{ site.site_id }}</h3>
+            <p class="text-muted mb-0 mt-1">{{ site.site_name }} | {{ photos.count }} Pending Photos</p>
+        </div>
     </div>
+
+    <div class="row g-4">
+        {% for photo in photos %}
+        <div class="col-md-6 col-xl-4">
+            <div class="photo-card shadow-sm h-100 d-flex flex-column">
+                
+                <a href="{{ photo.image.url }}" target="_blank">
+                    <img src="{{ photo.image.url }}" class="site-image" alt="Site Photo">
+                </a>
+                
+                <div class="p-3 d-flex flex-column flex-grow-1">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="badge bg-primary text-uppercase">{{ photo.qa_feedback|default:"No Category"|slice:":25" }}...</span>
+                        <span class="text-muted small">{{ photo.uploaded_at|date:"M d, Y" }}</span>
+                    </div>
+                    <p class="text-light small mb-3 flex-grow-1"><i class="fas fa-user-hard-hat text-warning me-1"></i> {{ photo.contractor.username }}</p>
+                    
+                    <form action="{% url 'qa_review' site.id %}" method="POST" class="mt-auto border-top border-secondary pt-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="photo_id" value="{{ photo.id }}">
+                        
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-muted mb-1">QA Feedback (Required if rejecting)</label>
+                            <textarea class="form-control form-control-sm" name="feedback" rows="2" placeholder="Type specific error if rejecting..."></textarea>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" name="action" value="approve" class="btn btn-sm btn-success flex-grow-1 fw-bold"><i class="fas fa-check me-1"></i> Approve</button>
+                            <button type="submit" name="action" value="reject" class="btn btn-sm btn-outline-danger flex-grow-1 fw-bold"><i class="fas fa-times me-1"></i> Reject</button>
+                        </div>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <i class="fas fa-check-circle fs-1 text-success mb-3 opacity-75"></i>
+            <h4 class="text-light">All Photos Validated!</h4>
+            <p class="text-muted">There are no pending photos left for this site.</p>
+            <a href="{% url 'qa_hub' %}" class="btn btn-primary mt-2">Return to Hub</a>
+        </div>
+        {% endfor %}
+    </div>
+
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        function fetchAlerts() {
+            fetch("{% url 'api_check_alerts' %}").then(response => response.json()).then(data => {
+                if (data.new_alerts && data.new_alerts.length > 0) {
+                    document.getElementById('alertSound').play().catch(e => console.log("Audio blocked."));
+                    const container = document.querySelector('.toast-container');
+                    data.new_alerts.forEach(alert => {
+                        let colorClass = alert.type === 'REWORK' ? 'bg-danger' : alert.type === 'UPLOAD' ? 'bg-success' : 'bg-primary';
+                        let icon = alert.type === 'REWORK' ? 'fa-exclamation-triangle' : alert.type === 'UPLOAD' ? 'fa-check-circle' : 'fa-bell';
+                        const toastHTML = `<div class="toast align-items-center text-white ${colorClass} border-0 mb-2 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="7000"><div class="d-flex"><div class="toast-body fw-semibold"><i class="fas ${icon} me-2"></i> [${alert.site}] ${alert.message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div></div>`;
+                        container.insertAdjacentHTML('beforeend', toastHTML);
+                        new bootstrap.Toast(container.lastElementChild).show();
+                    });
+                    const bellBtn = document.getElementById('bellIconBtn');
+                    if(!document.getElementById('bellDot') && bellBtn) {
+                        bellBtn.innerHTML += `<span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle" id="bellDot"><span class="visually-hidden">New alerts</span></span>`;
+                    }
+                }
+            });
+        }
+        setTimeout(function() { setInterval(fetchAlerts, 10000); }, 2000);
+    });
+</script>
 {% endblock %}
