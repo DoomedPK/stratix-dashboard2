@@ -10,7 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-fallback-key-for-dev-only')
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-# Clean Allowed Hosts by stripping spaces from Render dashboard
+# Clean Allowed Hosts by stripping spaces
 raw_hosts = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,stratixjm-dashboard.onrender.com')
 ALLOWED_HOSTS = [host.strip() for host in raw_hosts.split(',') if host.strip()]
 
@@ -104,13 +104,13 @@ CHANNEL_LAYERS = {
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # ---------------------------------------------------------
-# FOOLPROOF CSRF FIX
+# ABSOLUTE FOOLPROOF CSRF FIX (HARDCODED)
 # ---------------------------------------------------------
-csrf_origins_env = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
-if csrf_origins_env:
-    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins_env.split(',') if origin.strip()]
-else:
-    CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS if host not in ['127.0.0.1', 'localhost']]
+CSRF_TRUSTED_ORIGINS = [
+    "https://stratixjm-dashboard.onrender.com",
+    "https://127.0.0.1",
+    "https://localhost"
+]
 
 # ---------------------------------------------------------
 # PRODUCTION SECURITY
