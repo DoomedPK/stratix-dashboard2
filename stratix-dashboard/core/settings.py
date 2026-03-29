@@ -109,23 +109,25 @@ CHANNEL_LAYERS = {
 }
 
 # ---------------------------------------------------------
-# CSRF FIX (Works regardless of DEBUG mode)
+# CSRF FIX (Moved OUTSIDE the DEBUG check so it always works)
 # ---------------------------------------------------------
-# This will now correctly whitelist your Render site instantly
-csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS')
+csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
 if csrf_origins:
-    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins.split(',')]
+    CSRF_TRUSTED_ORIGINS = csrf_origins.split(',')
 else:
+    # Auto-generate from ALLOWED_HOSTS if the environment variable is missing
     CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS if host not in ['127.0.0.1', 'localhost']]
 
+
 # ---------------------------------------------------------
-# PRODUCTION SECURITY SETTINGS
+# PRODUCTION SECURITY & CSRF FIX
 # ---------------------------------------------------------
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
 # ---------------------------------------------------------
 # JAZZMIN CONFIGURATION (Dark Mode Admin)
 # ---------------------------------------------------------
