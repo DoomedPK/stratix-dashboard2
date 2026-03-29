@@ -66,7 +66,8 @@ ASGI_APPLICATION = 'core.asgi.application'
 DATABASES = {
     'default': dj_database_url.config(
         default='sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3'),
-        conn_max_age=600,
+        # Reuses connections for 60 seconds to stop Supabase from overloading
+        conn_max_age=60, 
         ssl_require=True 
     )
 }
@@ -106,7 +107,6 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # ---------------------------------------------------------
 # WILDCARD CSRF FIX
 # ---------------------------------------------------------
-# Using wildcards ensures that any subdomain of render or stratixjm is trusted
 CSRF_TRUSTED_ORIGINS = [
     "https://*.onrender.com",
     "https://*.stratixjm.com",
@@ -181,4 +181,3 @@ JAZZMIN_UI_TWEAKS = {
     "sidebar_nav_legacy_style": False,
     "sidebar_nav_flat_style": False,
 }
-
