@@ -10,11 +10,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-fallback-key-for-dev-only')
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-# Ensure your Render URL is included here in the dashboard
+# ALLOWED_HOSTS must include your Render URL
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
 INSTALLED_APPS = [
-    'jazzmin',  # Must be at the top
+    'jazzmin',  # Must be at the top for the dark theme to work
     'daphne',   # Required for WebSockets
     'django.contrib.admin',
     'django.contrib.auth',
@@ -22,14 +22,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'import_export', # Added missing app
+    'import_export', 
     'reports',
     'channels',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware', # For static files on Render
+    'whitenoise.middleware.WhiteNoiseMiddleware', # For serving static files on Render
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -51,7 +51,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'reports.context_processors.live_alerts', # Fixed function name
+                'reports.context_processors.live_alerts', # Matches function in context_processors.py
             ],
         },
     },
