@@ -13,13 +13,12 @@ admin.site.site_header = "Stratix Command Center"
 admin.site.site_title = "Stratix Admin Portal"
 admin.site.index_title = "Global Database Administration"
 
-
 # ---------------------------------------------------------
 # INLINES: Show related data on the same page
 # ---------------------------------------------------------
 class SitePhotoInline(admin.TabularInline):
     model = SitePhoto
-    extra = 0 # Don't show empty extra rows
+    extra = 0 
     readonly_fields = ['image_preview', 'uploaded_at']
     fields = ['image_preview', 'contractor', 'status', 'qa_feedback', 'uploaded_at']
 
@@ -29,13 +28,11 @@ class SitePhotoInline(admin.TabularInline):
         return "-"
     image_preview.short_description = 'Preview'
 
-
 # ---------------------------------------------------------
 # MODEL ADMINS: Customizing the Data Grids
 # ---------------------------------------------------------
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    # Stripped back to just 'name' to guarantee it matches your database!
     list_display = ('name',) 
     search_fields = ('name',)
     ordering = ('name',)
@@ -52,8 +49,9 @@ class SiteAdmin(admin.ModelAdmin):
     list_display = ('site_id', 'site_name', 'project', 'priority')
     list_filter = ('priority', 'project__client', 'project')
     search_fields = ('site_id', 'site_name', 'location')
-    inlines = [SitePhotoInline] # Shows photos inside the Site page!
-    filter_horizontal = ('assigned_contractors',) # Makes the contractor selection box much nicer
+    inlines = [SitePhotoInline] 
+    # REMOVED filter_horizontal to prevent Jazzmin dark-theme squishing bugs. 
+    # It now renders as a clean, highly visible standard selection box.
 
 @admin.register(Report)
 class ReportAdmin(admin.ModelAdmin):
@@ -75,7 +73,6 @@ class SitePhotoAdmin(admin.ModelAdmin):
     search_fields = ('site__site_id', 'qa_feedback')
     readonly_fields = ('uploaded_at',)
 
-    # Generates a clickable thumbnail in the main list view
     def image_thumbnail(self, obj):
         if obj.image:
             return format_html('<a href="{}" target="_blank"><img src="{}" style="max-height: 40px; border-radius: 4px;"/></a>', obj.image.url, obj.image.url)
@@ -83,7 +80,7 @@ class SitePhotoAdmin(admin.ModelAdmin):
     image_thumbnail.short_description = 'Photo'
 
 # ---------------------------------------------------------
-# AUDIT LOG PROTECTION: ActivityAlert
+# AUDIT LOG PROTECTION
 # ---------------------------------------------------------
 @admin.register(ActivityAlert)
 class ActivityAlertAdmin(admin.ModelAdmin):
@@ -91,16 +88,12 @@ class ActivityAlertAdmin(admin.ModelAdmin):
     list_filter = ('alert_type', 'timestamp')
     search_fields = ('site__site_id', 'message', 'user__username')
     
-    # Guidelines: Logs should be immutable.
-    # We make all fields readonly and disable add/delete permissions.
     def get_readonly_fields(self, request, obj=None):
         return [f.name for f in self.model._meta.fields]
 
     def has_add_permission(self, request):
         return False
-
     def has_change_permission(self, request, obj=None):
         return False
-
     def has_delete_permission(self, request, obj=None):
         return False
