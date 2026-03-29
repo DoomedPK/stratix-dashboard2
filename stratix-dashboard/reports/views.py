@@ -9,6 +9,8 @@ from django.db.models import Q
 from django.contrib.auth.models import User
 from .models import Site, SitePhoto, Report, ActivityAlert, Project
 from django.utils.timezone import now
+import io
+from django.contrib import messages
 
 @login_required
 def dashboard_home(request):
@@ -436,3 +438,86 @@ def export_performance_csv(request):
         errors = " | ".join([p.qa_feedback for p in recent_reworks]) if recent_reworks else "None"
         writer.writerow([f"{c.first_name} {c.last_name}".strip() or c.username, total_subs, reworks, rework_rate, errors])
     return response
+
+@login_required
+def import_sites(request):
+    user = request.user
+    # Only Admins and Clients can bulk import sites
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Client'])):
+        return redirect('dashboard_home')
+
+    if request.method == 'POST':
+        file = request.FILES.get('import_file')
+        if not file:
+            messages.error(request, "Please select a file to upload.")
+            return redirect('import_sites')
+
+        if not file.name.endswith('.csv'):
+            messages.error(request, "Invalid file format. Please ensure you saved your Excel file as a .csv")
+            return redirect('import_sites')
+
+        try:
+            # Handle BOM and decode
+            decoded_file = file.read().decode('utf-8-sig')
+            io_string = io.StringIO(decoded_file)
+            reader = csv.DictReader(io_string)
+            
+            success_count = 0
+            error_count = 0
+            
+            for row in reader:
+                # Clean headers and values to prevent typo crashes
+                clean_row = {k.strip().lower(): v.strip() for k, v in row.items() if k}
+                
+                site_id = clean_row.get('site_id')
+                site_name = clean_row.get('site_name', 'Unnamed Site')
+                project_name = clean_row.get('project')
+                location = clean_row.get('location', '')
+                lat_val = clean_row.get('latitude')
+                lng_val = clean_row.get('longitude')
+                priority = clean_row.get('priority', 'Medium')
+
+                if not site_id or not project_name:
+                    error_count += 1
+                    continue
+                    
+                # Safely parse coordinates
+                latitude = float(lat_val) if lat_val else None
+                longitude = float(lng_val) if lng_val else None
+                    
+                # 1. Match or Create the Project
+                project, p_created = Project.objects.get_or_create(name=project_name)
+                # Auto-link the project to the client if a client uploads it
+                if p_created and hasattr(user, 'profile') and user.profile.role == 'Client':
+                    if user.profile.client:
+                        project.client = user.profile.client
+                        project.save()
+                
+                # 2. Create or Update the Site
+                site, s_created = Site.objects.update_or_create(
+                    site_id=site_id,
+                    defaults={
+                        'site_name': site_name,
+                        'project': project,
+                        'location': location,
+                        'latitude': latitude,
+                        'longitude': longitude,
+                        'priority': priority
+                    }
+                )
+                
+                # 3. Auto-generate the Report tracker if it's a brand new site
+                if s_created:
+                    Report.objects.create(site=site, status='not_visited')
+                    ActivityAlert.objects.create(message=f"Bulk imported site {site_id}.", user=user, site=site, alert_type='UPLOAD')
+                    
+                success_count += 1
+            
+            messages.success(request, f"Successfully imported/updated {success_count} sites! {error_count} rows skipped.")
+            return redirect('site_visit_list')
+            
+        except Exception as e:
+            messages.error(request, f"Error reading file. Ensure it matches the template format. ({str(e)})")
+            return redirect('import_sites')
+
+    return render(request, 'reports/import_sites.html')
