@@ -8,28 +8,30 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY: Use environment variables for sensitive data
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-fallback-key-for-dev-only')
+
+# DEBUG must be False in production (Render dashboard variable)
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-# ALLOWED_HOSTS must include your Render URL
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+# Pull hosts from Render environment variables (Screenshot settings)
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,stratixjm-dashboard.onrender.com').split(',')
 
 INSTALLED_APPS = [
-    'jazzmin',  # Must be at the top for the dark theme
-    'daphne',   # Required for WebSockets
+    'jazzmin',
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'import_export', 
+    'import_export',
     'reports',
     'channels',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware', # For serving CSS/JS on Render
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -51,7 +53,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'reports.context_processors.live_alerts', # Fixed function name
+                'reports.context_processors.live_alerts', # Matches your context_processors.py
             ],
         },
     },
@@ -60,7 +62,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 ASGI_APPLICATION = 'core.asgi.application'
 
-# Database: Connect to Supabase using the DATABASE_URL variable
+# Database configuration for Supabase (PostgreSQL)
 DATABASES = {
     'default': dj_database_url.config(
         default='sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3'),
@@ -68,6 +70,13 @@ DATABASES = {
         ssl_require=True
     )
 }
+
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',},
+]
 
 # Formatting for report exports
 IMPORT_EXPORT_FORMATS = [XLSX, CSV]
@@ -95,13 +104,14 @@ CHANNEL_LAYERS = {
 }
 
 # ---------------------------------------------------------
-# PRODUCTION SECURITY SETTINGS
+# PRODUCTION SECURITY & CSRF FIX
 # ---------------------------------------------------------
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS if host != '127.0.0.1']
+    # THIS FIXES THE 403 ERROR:
+    CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS if host not in ['127.0.0.1', 'localhost']]
 
 # ---------------------------------------------------------
 # JAZZMIN CONFIGURATION
