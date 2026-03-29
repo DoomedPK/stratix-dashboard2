@@ -130,7 +130,7 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = True
 
 # ---------------------------------------------------------
-# JAZZMIN CONFIGURATION (With UI Builder & Icon Fix)
+# JAZZMIN CONFIGURATION
 # ---------------------------------------------------------
 JAZZMIN_SETTINGS = {
     "site_title": "Stratix Admin",
@@ -145,17 +145,16 @@ JAZZMIN_SETTINGS = {
         {"name": "Dashboard", "url": "dashboard_home"},
         {"model": "auth.User"},
     ],
-    
-    # 1. THIS FIXES THE MISSING ACCOUNT ICON
     "usermenu_links": [
         {"name": "My Account", "url": "/admin/auth/user/", "icon": "fas fa-user-circle"},
     ],
-    
     "show_sidebar": True,
-    "navigation_expanded": True,
     
-    # 2. THIS ENABLES THE LIVE UI CUSTOMIZER TOOL
-    "show_ui_builder": True,
+    # 1. FIX: Allows the menu to collapse dynamically so forms fit on the screen
+    "navigation_expanded": False,
+    
+    # 2. FIX: Turns off the experimental customizer to prevent layout glitches
+    "show_ui_builder": False,
 
     "icons": {
         "auth": "fas fa-users-cog",
@@ -175,7 +174,6 @@ JAZZMIN_UI_TWEAKS = {
     "navbar": "navbar-dark", 
     "theme": "darkly",
     "dark_mode_theme": "darkly",
-    # 3. These defaults strip away sharp boxes and use rounded "pill/bubble" styles
     "sidebar_nav_child_indent": True,
     "sidebar_nav_compact_style": False,
     "sidebar_nav_legacy_style": False,
