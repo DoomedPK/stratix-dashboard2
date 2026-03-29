@@ -10,3 +10,5 @@ python manage.py collectstatic --no-input
 
 # Run database migrations to Supabase
 python manage.py migrate
+
+
