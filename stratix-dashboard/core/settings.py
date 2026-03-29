@@ -1,7 +1,7 @@
 import os
+import dj_database_url
 from pathlib import Path
 from import_export.formats.base_formats import XLSX, CSV
-import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -9,29 +9,30 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY: Use environment variables for sensitive data
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-fallback-key-for-dev-only')
 
-# DEBUG must be False in production (Render dashboard variable)
+# DEBUG should be False in production (controlled via Render dashboard)
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-# Pull hosts from Render environment variables (Screenshot settings)
+# Pull hosts from Render environment variables
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,stratixjm-dashboard.onrender.com').split(',')
 
+# Application definition
 INSTALLED_APPS = [
-    'jazzmin',
-    'daphne',
+    'jazzmin',  # Must be at the top for the dark theme
+    'daphne',   # Required for WebSockets
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'import_export',
+    'import_export', 
     'reports',
     'channels',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', # For serving static files on Render
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -45,7 +46,7 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -53,7 +54,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'reports.context_processors.live_alerts', # Matches your context_processors.py
+                'reports.context_processors.live_alerts', # Matches live_alerts in your context_processors.py
             ],
         },
     },
@@ -63,6 +64,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 ASGI_APPLICATION = 'core.asgi.application'
 
 # Database configuration for Supabase (PostgreSQL)
+# Uses DATABASE_URL from your Render environment variables
 DATABASES = {
     'default': dj_database_url.config(
         default='sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3'),
@@ -71,6 +73,7 @@ DATABASES = {
     )
 }
 
+# Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',},
@@ -81,20 +84,23 @@ AUTH_PASSWORD_VALIDATORS = [
 # Formatting for report exports
 IMPORT_EXPORT_FORMATS = [XLSX, CSV]
 
+# Internationalization
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
+# Static and Media files
 STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = BASE_DIR / 'media'
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+LOGIN_REDIRECT_URL = 'dashboard_home'
+LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 # WebSocket / Channel Layers
 CHANNEL_LAYERS = {
@@ -110,41 +116,12 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    # THIS FIXES THE 403 ERROR:
+    # THIS FIXES THE 403 ERROR by whitelisting your Render URL
     CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS if host not in ['127.0.0.1', 'localhost']]
 
 # ---------------------------------------------------------
-# JAZZMIN CONFIGURATION
+# JAZZMIN CONFIGURATION (Dark Mode Admin)
 # ---------------------------------------------------------
-JAZZMIN_SETTINGS = {
-    "site_title": "Stratix Admin",
-    "site_header": "Stratix",
-    "site_brand": "STRATIX COMMAND",
-    "site_logo": "images/stratix-logo.png",
-    "welcome_sign": "Welcome to the Stratix Global Command Center",
-    "copyright": "Stratix Ltd",
-    "search_model": ["reports.Site", "auth.User"],
-    "topmenu_links": [
-        {"name": "Home",  "url": "admin:index", "permissions": ["auth.view_user"]},
-        {"name": "Dashboard", "url": "dashboard_home"},
-        {"model": "auth.User"},
-    ],
-    "show_sidebar": True,
-    "navigation_expanded": True,
-    "icons": {
-        "auth": "fas fa-users-cog",
-        "auth.user": "fas fa-user",
-        "reports.Client": "fas fa-building",
-        "reports.Project": "fas fa-project-diagram",
-        "reports.Site": "fas fa-tower-cell",
-        "reports.Report": "fas fa-file-invoice",
-        "reports.SitePhoto": "fas fa-camera",
-        "reports.ActivityAlert": "fas fa-bell",
-        "reports.UserProfile": "fas fa-id-card",
-    },
-    "order_with_respect_to": ["reports", "auth"],
-}
-
 JAZZMIN_UI_TWEAKS = {
     "theme": "darkly",
     "dark_mode_theme": "darkly",
