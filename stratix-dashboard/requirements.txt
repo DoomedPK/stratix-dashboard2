@@ -4,3 +4,6 @@ whitenoise
 pillow
 dj-database-url
 psycopg2-binary
+daphne
+channels
+django-import-export
