@@ -145,6 +145,14 @@
                     <a href="{% url 'global_map' %}" class="btn btn-sm btn-outline-info">Full Screen</a>
                 </div>
                 <div id="miniMap" style="height: 300px; width: 100%; border-radius: 8px; z-index: 1;"></div>
+                
+                <div class="mt-3 d-flex flex-wrap gap-2 justify-content-center small text-muted">
+                    <span class="badge bg-dark border border-secondary fw-normal"><i class="fas fa-circle text-success me-1"></i> Completed (Good)</span>
+                    <span class="badge bg-dark border border-secondary fw-normal"><i class="fas fa-circle text-primary me-1"></i> In Progress</span>
+                    <span class="badge bg-dark border border-secondary fw-normal"><i class="fas fa-circle text-warning me-1"></i> Minor Issue</span>
+                    <span class="badge bg-dark border border-secondary fw-normal"><i class="fas fa-circle me-1" style="color: #f97316;"></i> Major Issue</span>
+                    <span class="badge bg-dark border border-secondary fw-normal"><i class="fas fa-circle text-danger me-1"></i> Critical Issue</span>
+                </div>
             </div>
         </div>
 
@@ -300,16 +308,16 @@
             }
         });
 
+        // NEW COLOR CODED MAP LOGIC
         if (document.getElementById('miniMap')) {
             var miniMap = L.map('miniMap', { scrollWheelZoom: false }).setView([20, 0], 2);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; OpenStreetMap contributors &copy; CARTO' }).addTo(miniMap);
             var sites = {{ sites_json|safe }};
             var bounds = [];
             sites.forEach(function(site) {
-                var pinColor = "#28a745"; 
-                if (site.priority === "Medium") pinColor = "#ffc107"; 
-                else if (site.priority === "High") pinColor = "#dc3545"; 
-                L.circleMarker([site.lat, site.lng], { radius: 6, fillColor: pinColor, color: "#000", weight: 1, opacity: 1, fillOpacity: 0.9 }).addTo(miniMap).bindPopup(`<b>${site.name}</b><br>Priority: ${site.priority}`);
+                L.circleMarker([site.lat, site.lng], { radius: 6, fillColor: site.color, color: "#000", weight: 1, opacity: 1, fillOpacity: 0.9 })
+                 .addTo(miniMap)
+                 .bindPopup(`<b>${site.name}</b><br><span class="text-muted">${site.site_name}</span><br>Status: <b style="color:${site.color}">${site.status}</b>`);
                 bounds.push([site.lat, site.lng]); 
             });
             if (bounds.length > 0) { miniMap.fitBounds(bounds, { padding: [20, 20] }); }
