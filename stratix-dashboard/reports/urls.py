@@ -1,34 +1,24 @@
 from django.urls import path
+from django.views.generic import TemplateView
 from . import views
 
 urlpatterns = [
-    # Dashboard Home
     path('', views.dashboard_home, name='dashboard_home'),
-    
-    # Sites List
-    path('sites-list/', views.site_visit_list, name='site_visit_list'),
-    
-    # Uploads
-    path('upload-photos/', views.upload_photos, name='upload_photos'),
-    
-    # Check-in trigger
+    path('upload/', views.upload_photos, name='upload_photos'),
+    path('sites/', views.site_visit_list, name='site_visit_list'),
     path('start-visit/<int:report_id>/', views.start_visit, name='start_visit'),
-    
-    # Rework Log
-    path('rework-log/', views.rework_log, name='rework_log'),
-    path('rework-upload/<int:photo_id>/', views.rework_upload, name='rework_upload'),
-    
-    # QA Validation Hub
-    path('qa-hub/', views.qa_hub, name='qa_hub'),
-    path('qa-review/<int:site_id>/', views.qa_review, name='qa_review'),
-    
-    # Technical Report Writer Hub
-    path('tech-writer-hub/', views.tech_writer_hub, name='tech_writer_hub'),
-    path('draft-report/<int:report_id>/', views.draft_report, name='draft_report'),
-    
-    # NEW: Background API for Live Pop-Up Notifications
+    path('rework/', views.rework_log, name='rework_log'),
+    path('rework/upload/<int:photo_id>/', views.rework_upload, name='rework_upload'),
+    path('qa/', views.qa_hub, name='qa_hub'),
+    path('qa/review/<int:site_id>/', views.qa_review, name='qa_review'),
+    path('tech-writer/', views.tech_writer_hub, name='tech_writer_hub'),
+    path('tech-writer/draft/<int:report_id>/', views.draft_report, name='draft_report'),
+    path('logout/', views.custom_logout, name='logout'),
     path('api/alerts/', views.api_check_alerts, name='api_check_alerts'),
+    path('map/', views.geographical_map_view, name='global_map'),
     path('export-csv/', views.export_performance_csv, name='export_performance_csv'),
-    #Geohraphical Map
-    path('global-map/', views.geographical_map_view, name='global_map'),
+    
+    # PWA URLs (Serving the manifest and service worker directly)
+    path('manifest.json', TemplateView.as_view(template_name='reports/manifest.json', content_type='application/json'), name='manifest'),
+    path('sw.js', TemplateView.as_view(template_name='reports/sw.js', content_type='application/javascript'), name='sw'),
 ]

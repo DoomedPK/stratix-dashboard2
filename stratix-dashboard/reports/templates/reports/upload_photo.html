@@ -87,9 +87,9 @@
         }
     });
 
-    // NEW AJAX UPLOAD LOGIC
+    // AJAX UPLOAD LOGIC
     document.getElementById('uploadForm').addEventListener('submit', function(e) {
-        e.preventDefault(); // Stop standard form submission
+        e.preventDefault(); 
 
         const form = this;
         const formData = new FormData(form);
@@ -101,15 +101,13 @@
         const progressSpinner = document.getElementById('progressSpinner');
         const submitBtn = document.getElementById('submitBtn');
 
-        // Reveal progress bar and lock the submit button
         progressContainer.style.display = 'block';
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin me-2"></i> Processing...';
 
         xhr.open('POST', form.action, true);
-        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest'); // Tells Django it's AJAX
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest'); 
 
-        // Track upload progress byte-by-byte
         xhr.upload.addEventListener('progress', function(e) {
             if (e.lengthComputable) {
                 const percent = Math.round((e.loaded / e.total) * 100);
@@ -123,10 +121,8 @@
             }
         });
 
-        // Handle Server Response
         xhr.onload = function() {
             if (xhr.status >= 200 && xhr.status < 300) {
-                // Success! Turn bar green and redirect
                 progressBar.classList.add('bg-success');
                 progressBar.classList.remove('bg-info');
                 progressText.innerText = 'Upload Complete! Redirecting...';
@@ -134,11 +130,8 @@
                 progressSpinner.classList.replace('fa-spinner', 'fa-check-circle');
                 progressSpinner.classList.replace('fa-spin', 'text-success');
                 
-                setTimeout(() => {
-                    window.location.href = "{% url 'site_visit_list' %}";
-                }, 1000);
+                setTimeout(() => { window.location.href = "{% url 'site_visit_list' %}"; }, 1000);
             } else {
-                // Error handling
                 alert('An error occurred during upload. Please check your connection and try again.');
                 progressContainer.style.display = 'none';
                 submitBtn.disabled = false;
@@ -155,23 +148,5 @@
 
         xhr.send(formData);
     });
-
-    // LIVE ALERTS (Kept your existing heartbeat)
-    function fetchAlerts() {
-        fetch("{% url 'api_check_alerts' %}").then(response => response.json()).then(data => {
-            if (data.new_alerts && data.new_alerts.length > 0) {
-                document.getElementById('alertSound').play().catch(e => console.log("Audio blocked."));
-                const container = document.querySelector('.toast-container');
-                data.new_alerts.forEach(alert => {
-                    let colorClass = alert.type === 'REWORK' ? 'bg-danger' : alert.type === 'UPLOAD' ? 'bg-success' : 'bg-primary';
-                    let icon = alert.type === 'REWORK' ? 'fa-exclamation-triangle' : alert.type === 'UPLOAD' ? 'fa-check-circle' : 'fa-bell';
-                    container.insertAdjacentHTML('beforeend', `<div class="toast align-items-center text-white ${colorClass} border-0 mb-2 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="7000"><div class="d-flex"><div class="toast-body fw-semibold"><i class="fas ${icon} me-2"></i> [${alert.site}] ${alert.message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>`);
-                    new bootstrap.Toast(container.lastElementChild).show();
-                });
-                if(!document.getElementById('bellDot')) document.getElementById('bellIconBtn').innerHTML += `<span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle" id="bellDot"></span>`;
-            }
-        });
-    }
-    setTimeout(function() { setInterval(fetchAlerts, 10000); }, 2000);
 </script>
 {% endblock %}

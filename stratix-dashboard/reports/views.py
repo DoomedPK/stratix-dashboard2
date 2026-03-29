@@ -98,6 +98,46 @@ def dashboard_home(request):
             
     avg_tat = round(total_tat_days / tat_count, 1) if tat_count > 0 else 0
 
+    # ---------------------------------------------------------
+    # NEW: 6-MONTH HISTORICAL TREND DATA
+    # ---------------------------------------------------------
+    import datetime
+    
+    trend_labels = []
+    tat_trend = []
+    rework_trend = []
+    
+    current_date = now().date()
+    
+    # Loop backwards through the last 6 months
+    for i in range(5, -1, -1):
+        target_month = (current_date.month - i - 1) % 12 + 1
+        target_year = current_date.year + ((current_date.month - i - 1) // 12)
+        
+        # Build the label (e.g., "Oct 2025")
+        month_label = datetime.date(target_year, target_month, 1).strftime('%b %Y')
+        trend_labels.append(month_label)
+        
+        # 1. Monthly TAT Calculation
+        m_reports = reports.filter(status='submitted') # We will filter dates via alerts to be safe
+        m_total_tat = 0
+        m_tat_count = 0
+        
+        for r in m_reports:
+            final_alert = ActivityAlert.objects.filter(site=r.site, alert_type='UPLOAD', message__icontains='Final', timestamp__year=target_year, timestamp__month=target_month).order_by('-timestamp').first()
+            if final_alert and hasattr(r, 'submitted_at') and r.submitted_at:
+                delta = final_alert.timestamp - r.submitted_at
+                m_total_tat += delta.days
+                m_tat_count += 1
+                
+        tat_trend.append(round(m_total_tat / m_tat_count, 1) if m_tat_count > 0 else 0)
+        
+        # 2. Monthly Rework Calculation
+        m_photos = SitePhoto.objects.filter(site__in=sites, uploaded_at__year=target_year, uploaded_at__month=target_month)
+        m_total_subs = m_photos.count()
+        m_reworks = m_photos.filter(status='REJECTED').count()
+        rework_trend.append(round((m_reworks / m_total_subs * 100), 1) if m_total_subs > 0 else 0)
+    
     # 7. Contractor Performance Tracking (Least Privilege)
     contractor_stats = []
     is_client_or_admin = user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Client'])
@@ -145,6 +185,9 @@ def dashboard_home(request):
         'contractor_stats': contractor_stats,
         'show_performance': is_client_or_admin or is_contractor,
         'is_client_or_admin': is_client_or_admin,
+        'trend_labels': json.dumps(trend_labels),
+        'tat_trend': json.dumps(tat_trend),
+        'rework_trend': json.dumps(rework_trend),
     }
     return render(request, 'reports/dashboard.html', context)
 

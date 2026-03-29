@@ -67,23 +67,5 @@
             document.getElementById('dropZone').style.borderColor = '#10b981';
         }
     });
-
-    // LIVE ALERTS
-    function fetchAlerts() {
-        fetch("{% url 'api_check_alerts' %}").then(response => response.json()).then(data => {
-            if (data.new_alerts && data.new_alerts.length > 0) {
-                document.getElementById('alertSound').play().catch(e => console.log("Audio blocked."));
-                const container = document.querySelector('.toast-container');
-                data.new_alerts.forEach(alert => {
-                    let colorClass = alert.type === 'REWORK' ? 'bg-danger' : alert.type === 'UPLOAD' ? 'bg-success' : 'bg-primary';
-                    let icon = alert.type === 'REWORK' ? 'fa-exclamation-triangle' : alert.type === 'UPLOAD' ? 'fa-check-circle' : 'fa-bell';
-                    container.insertAdjacentHTML('beforeend', `<div class="toast align-items-center text-white ${colorClass} border-0 mb-2 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="7000"><div class="d-flex"><div class="toast-body fw-semibold"><i class="fas ${icon} me-2"></i> [${alert.site}] ${alert.message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>`);
-                    new bootstrap.Toast(container.lastElementChild).show();
-                });
-                if(!document.getElementById('bellDot')) document.getElementById('bellIconBtn').innerHTML += `<span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle" id="bellDot"></span>`;
-            }
-        });
-    }
-    setTimeout(function() { setInterval(fetchAlerts, 10000); }, 2000);
 </script>
 {% endblock %}

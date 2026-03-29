@@ -205,6 +205,18 @@
                     {% endfor %}
                 </div>
             </div>
+
+            {% if is_client_or_admin %}
+            <div class="card p-4 shadow-sm border-success-left h-auto mt-4">
+                <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-3 mb-4">
+                    <h5 class="fw-bold mb-0"><i class="fas fa-chart-line me-2 text-success"></i> 6-Month Trend Analysis</h5>
+                </div>
+                <div style="position: relative; height: 300px; width: 100%;">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+            {% endif %}
+
             {% endif %}
         </div>
     </div>
@@ -251,51 +263,7 @@
             }
         });
 
-        // LIVE ALERT POLLING (HEARTBEAT)
-        function fetchAlerts() {
-            fetch("{% url 'api_check_alerts' %}")
-            .then(response => response.json())
-            .then(data => {
-                if (data.new_alerts && data.new_alerts.length > 0) {
-                    const audio = document.getElementById('alertSound');
-                    audio.play().catch(e => console.log("Browser blocked audio."));
-
-                    const container = document.querySelector('.toast-container');
-                    
-                    data.new_alerts.forEach(alert => {
-                        let colorClass = 'bg-primary';
-                        let icon = 'fa-bell';
-                        if(alert.type === 'REWORK') { colorClass = 'bg-danger'; icon = 'fa-exclamation-triangle'; }
-                        else if(alert.type === 'UPLOAD') { colorClass = 'bg-success'; icon = 'fa-check-circle'; }
-
-                        const toastHTML = `
-                            <div class="toast align-items-center text-white ${colorClass} border-0 mb-2 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="7000">
-                                <div class="d-flex">
-                                    <div class="toast-body fw-semibold">
-                                        <i class="fas ${icon} me-2"></i> [${alert.site}] ${alert.message}
-                                    </div>
-                                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                                </div>
-                            </div>
-                        `;
-                        container.insertAdjacentHTML('beforeend', toastHTML);
-                        const bsToast = new bootstrap.Toast(container.lastElementChild);
-                        bsToast.show();
-                    });
-
-                    const bellBtn = document.getElementById('bellIconBtn');
-                    if(!document.getElementById('bellDot') && bellBtn) {
-                        bellBtn.innerHTML += `<span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle" id="bellDot"><span class="visually-hidden">New alerts</span></span>`;
-                    }
-                }
-            });
-        }
-        
-        setTimeout(function() {
-            setInterval(fetchAlerts, 10000);
-        }, 2000);
-
-        // MINI MAP SCRIPT (Using CARTO Dark Matter Tiles & site.priority)
+        // MINI MAP SCRIPT 
         if (document.getElementById('miniMap')) {
             var miniMap = L.map('miniMap', { scrollWheelZoom: false }).setView([20, 0], 2);
 
@@ -307,9 +275,9 @@
             var bounds = [];
 
             sites.forEach(function(site) {
-                var pinColor = "#28a745"; // Default Green (Low Priority)
-                if (site.priority === "Medium") pinColor = "#ffc107"; // Yellow
-                else if (site.priority === "High") pinColor = "#dc3545"; // Red
+                var pinColor = "#28a745"; 
+                if (site.priority === "Medium") pinColor = "#ffc107"; 
+                else if (site.priority === "High") pinColor = "#dc3545"; 
 
                 L.circleMarker([site.lat, site.lng], {
                     radius: 6,
@@ -327,6 +295,67 @@
                 miniMap.fitBounds(bounds, { padding: [20, 20] });
             }
         }
+
+        // NEW: HISTORICAL TREND LINE CHART
+        if (document.getElementById('trendChart')) {
+            const trendCtx = document.getElementById('trendChart').getContext('2d');
+            
+            const labels = JSON.parse('{{ trend_labels|safe }}');
+            const tatData = JSON.parse('{{ tat_trend|safe }}');
+            const reworkData = JSON.parse('{{ rework_trend|safe }}');
+
+            new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Avg Turnaround Time (Days)',
+                            data: tatData,
+                            borderColor: '#38bdf8', // Blue
+                            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.3, // Smooth curves
+                            fill: true,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Rework Rate (%)',
+                            data: reworkData,
+                            borderColor: '#ef4444', // Red
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.3,
+                            fill: true,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#cbd5e1' } },
+                        datalabels: { display: false } // Hide numbers on lines
+                    },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+                        y: { 
+                            type: 'linear', display: true, position: 'left',
+                            title: { display: true, text: 'Days', color: '#38bdf8' },
+                            ticks: { color: '#94a3b8' }, grid: { color: '#334155' },
+                            min: 0 
+                        },
+                        y1: { 
+                            type: 'linear', display: true, position: 'right',
+                            title: { display: true, text: 'Percentage (%)', color: '#ef4444' },
+                            ticks: { color: '#94a3b8' }, grid: { drawOnChartArea: false },
+                            min: 0, max: 100
+                        }
+                    }
+                }
+            });
+        }
     });
 
     // Contractor Search Dropdown Logic
@@ -334,12 +363,10 @@
         var selectedId = document.getElementById("contractorSelect").value;
         var container = document.getElementById("contractorStatsContainer");
         
-        // Hide all contractor data rows first
         var allData = document.querySelectorAll(".contractor-data");
         allData.forEach(function(el) { el.style.display = "none"; });
         
         if (selectedId) {
-            // Show the container and the specific contractor row
             container.style.display = "block";
             document.getElementById("contractor-" + selectedId).style.display = "flex";
         } else {
