@@ -7,3 +7,4 @@ psycopg2-binary
 daphne
 channels
 django-import-export
+django-jazzmin
