@@ -68,7 +68,8 @@
                             {% endif %}
                         </td>
                         <td class="pe-4 text-end text-nowrap">
-                            {% if user.profile.role == 'Contractor' or user.profile.role == 'Admin' %}
+                            
+                            {% if user.is_superuser or user.profile.role == 'QA' or user.profile.role == 'Admin' %}
                                 <button type="button" class="btn btn-sm btn-outline-danger text-light" data-bs-toggle="modal" data-bs-target="#issueModal-{{ report.site.id }}" title="Report Site Issue"><i class="fas fa-exclamation-triangle"></i></button>
                             {% endif %}
                             
@@ -96,6 +97,7 @@
                         </td>
                     </tr>
                     
+                    {% if user.is_superuser or user.profile.role == 'QA' or user.profile.role == 'Admin' %}
                     <div class="modal fade text-start" id="issueModal-{{ report.site.id }}" tabindex="-1" aria-hidden="true">
                         <div class="modal-dialog">
                             <div class="modal-content bg-dark border-secondary">
@@ -128,6 +130,8 @@
                             </div>
                         </div>
                     </div>
+                    {% endif %}
+                    
                     {% endfor %}
                 </tbody>
             </table>
@@ -150,7 +154,6 @@
             $('table.table').DataTable().destroy();
         }
 
-        // Custom filter logic to match data-project attribute
         $.fn.dataTable.ext.search.push(
             function(settings, data, dataIndex, rowData, counter) {
                 var selectedProject = $('#projectFilter').val();
@@ -171,7 +174,6 @@
                    "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>"
         });
 
-        // Prepend dropdown next to search box seamlessly
         $('.dataTables_filter').prepend($('#projectFilterWrapper').html());
         $('#projectFilterWrapper').remove();
 
