@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: stratix-dashboard
+    runtime: python
+    # This matches your manually uploaded build script
+    buildCommand: ./build.sh
+    # This ensures your WebSockets (Daphne) work correctly
+    startCommand: daphne core.asgi:application --port $PORT --bind 0.0.0.0
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.14.0"
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: "stratix-dashboard.onrender.com,127.0.0.1"
+      # These are already in your dashboard; sync: false prevents overwriting
+      - key: DATABASE_URL
+        sync: false
+      - key: DJANGO_SECRET_KEY
+        sync: false
