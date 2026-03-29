@@ -1,5 +1,6 @@
 import json
 import csv
+import io
 import datetime
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
@@ -7,10 +8,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.db.models import Q
 from django.contrib.auth.models import User
+from django.contrib import messages
 from .models import Site, SitePhoto, Report, ActivityAlert, Project, SiteIssue
 from django.utils.timezone import now
-import io
-from django.contrib import messages
 
 @login_required
 def dashboard_home(request):
@@ -186,6 +186,119 @@ def dashboard_home(request):
     return render(request, 'reports/dashboard.html', context)
 
 @login_required
+def import_sites(request):
+    user = request.user
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role == 'Admin')):
+        return redirect('dashboard_home')
+
+    if request.method == 'POST':
+        file = request.FILES.get('import_file')
+        if not file:
+            messages.error(request, "Please select a file to upload.")
+            return redirect('import_sites')
+
+        if not file.name.endswith('.csv'):
+            messages.error(request, "Invalid file format. Please ensure you saved your Excel file as a .csv")
+            return redirect('import_sites')
+
+        try:
+            decoded_file = file.read().decode('utf-8-sig')
+            io_string = io.StringIO(decoded_file)
+            reader = csv.DictReader(io_string)
+            
+            success_count = 0
+            error_count = 0
+            
+            for row in reader:
+                clean_row = {k.strip().lower(): v.strip() for k, v in row.items() if k}
+                site_id = clean_row.get('site_id')
+                site_name = clean_row.get('site_name', 'Unnamed Site')
+                project_name = clean_row.get('project')
+                location = clean_row.get('location', '')
+                lat_val = clean_row.get('latitude')
+                lng_val = clean_row.get('longitude')
+                priority = clean_row.get('priority', 'Medium')
+
+                if not site_id or not project_name:
+                    error_count += 1
+                    continue
+                    
+                latitude = float(lat_val) if lat_val else None
+                longitude = float(lng_val) if lng_val else None
+                    
+                project, p_created = Project.objects.get_or_create(name=project_name)
+                
+                site, s_created = Site.objects.update_or_create(
+                    site_id=site_id,
+                    defaults={'site_name': site_name, 'project': project, 'location': location, 'latitude': latitude, 'longitude': longitude, 'priority': priority}
+                )
+                
+                if s_created:
+                    Report.objects.create(site=site, status='not_visited')
+                    ActivityAlert.objects.create(message=f"Bulk imported site {site_id}.", user=user, site=site, alert_type='UPLOAD')
+                    
+                success_count += 1
+            
+            messages.success(request, f"Successfully imported/updated {success_count} sites! {error_count} rows skipped.")
+            return redirect('site_visit_list')
+            
+        except Exception as e:
+            messages.error(request, f"Error reading file. Ensure it matches the template format. ({str(e)})")
+            return redirect('import_sites')
+
+    return render(request, 'reports/import_sites.html')
+
+@login_required
+def site_visit_list(request):
+    user = request.user
+    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer']):
+        reports_list = Report.objects.all()
+        projects = Project.objects.all()
+    elif hasattr(user, 'profile') and user.profile.role == 'Client':
+        reports_list = Report.objects.filter(site__project__client=user.profile.client)
+        projects = Project.objects.filter(client=user.profile.client)
+    else:
+        reports_list = Report.objects.filter(site__assigned_contractors=user)
+        projects = Project.objects.filter(sites__assigned_contractors=user).distinct()
+
+    return render(request, 'reports/site_list.html', {'reports': reports_list, 'projects': projects})
+
+@login_required
+def report_issue(request, site_id):
+    user = request.user
+    # FIX: Restrict Issue Reporting to QA and Admins Only
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA'])):
+        return redirect('site_visit_list')
+
+    if request.method == 'POST':
+        site = get_object_or_404(Site, id=site_id)
+        severity = request.POST.get('severity', 'Minor')
+        description = request.POST.get('description', 'No description provided.')
+        SiteIssue.objects.create(site=site, reported_by=request.user, severity=severity, description=description)
+        ActivityAlert.objects.create(message=f"{severity} issue logged for this site.", user=request.user, site=site, alert_type='REWORK')
+        
+    # Redirect dynamically so it works from both QA Hub and Site List
+    referer = request.META.get('HTTP_REFERER')
+    if referer:
+        return redirect(referer)
+    return redirect('site_visit_list')
+
+@login_required
+def site_issues_list(request):
+    user = request.user
+    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer']):
+        issues = SiteIssue.objects.filter(is_resolved=False).order_by('-created_at')
+        projects = Project.objects.filter(sites__issues__is_resolved=False).distinct()
+    elif hasattr(user, 'profile') and user.profile.role == 'Client':
+        issues = SiteIssue.objects.filter(site__project__client=user.profile.client, is_resolved=False).order_by('-created_at')
+        projects = Project.objects.filter(client=user.profile.client, sites__issues__is_resolved=False).distinct()
+    else:
+        issues = SiteIssue.objects.filter(site__assigned_contractors=user, is_resolved=False).order_by('-created_at')
+        projects = Project.objects.filter(sites__assigned_contractors=user, sites__issues__is_resolved=False).distinct()
+
+    return render(request, 'reports/site_issues.html', {'issues': issues, 'projects': projects})
+
+@login_required
 def upload_photos(request):
     user = request.user
     if request.method == 'POST':
@@ -223,21 +336,6 @@ def start_visit(request, report_id):
     report.save()
     ActivityAlert.objects.create(message=f"Contractor has arrived on site.", user=request.user, site=report.site, alert_type='CHECK_IN')
     return redirect('site_visit_list')
-
-@login_required
-def site_visit_list(request):
-    user = request.user
-    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer']):
-        reports_list = Report.objects.all()
-        projects = Project.objects.all()
-    elif hasattr(user, 'profile') and user.profile.role == 'Client':
-        reports_list = Report.objects.filter(site__project__client=user.profile.client)
-        projects = Project.objects.filter(client=user.profile.client)
-    else:
-        reports_list = Report.objects.filter(site__assigned_contractors=user)
-        projects = Project.objects.filter(sites__assigned_contractors=user).distinct()
-
-    return render(request, 'reports/site_list.html', {'reports': reports_list, 'projects': projects})
 
 @login_required
 def rework_log(request):
@@ -331,7 +429,6 @@ def approve_report(request, report_id):
 @login_required
 def tech_writer_hub(request):
     user = request.user
-    # FIX: QA is now explicitly granted access to draft reports!
     if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Tech Writer', 'QA'])):
         return redirect('dashboard_home')
         
@@ -341,7 +438,6 @@ def tech_writer_hub(request):
 @login_required
 def draft_report(request, report_id):
     user = request.user
-    # FIX: QA is now explicitly granted access
     if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Tech Writer', 'QA'])):
         return redirect('dashboard_home')
 
@@ -438,92 +534,3 @@ def export_performance_csv(request):
         errors = " | ".join([p.qa_feedback for p in recent_reworks]) if recent_reworks else "None"
         writer.writerow([f"{c.first_name} {c.last_name}".strip() or c.username, total_subs, reworks, rework_rate, errors])
     return response
-
-@login_required
-def import_sites(request):
-    user = request.user
-    # FIX: Only Admins can bulk import sites (Removed Client)
-    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role == 'Admin')):
-        return redirect('dashboard_home')
-
-    if request.method == 'POST':
-        file = request.FILES.get('import_file')
-        if not file:
-            messages.error(request, "Please select a file to upload.")
-            return redirect('import_sites')
-
-        if not file.name.endswith('.csv'):
-            messages.error(request, "Invalid file format. Please ensure you saved your Excel file as a .csv")
-            return redirect('import_sites')
-
-        try:
-            decoded_file = file.read().decode('utf-8-sig')
-            io_string = io.StringIO(decoded_file)
-            reader = csv.DictReader(io_string)
-            
-            success_count = 0
-            error_count = 0
-            
-            for row in reader:
-                clean_row = {k.strip().lower(): v.strip() for k, v in row.items() if k}
-                site_id = clean_row.get('site_id')
-                site_name = clean_row.get('site_name', 'Unnamed Site')
-                project_name = clean_row.get('project')
-                location = clean_row.get('location', '')
-                lat_val = clean_row.get('latitude')
-                lng_val = clean_row.get('longitude')
-                priority = clean_row.get('priority', 'Medium')
-
-                if not site_id or not project_name:
-                    error_count += 1
-                    continue
-                    
-                latitude = float(lat_val) if lat_val else None
-                longitude = float(lng_val) if lng_val else None
-                    
-                project, p_created = Project.objects.get_or_create(name=project_name)
-                
-                site, s_created = Site.objects.update_or_create(
-                    site_id=site_id,
-                    defaults={'site_name': site_name, 'project': project, 'location': location, 'latitude': latitude, 'longitude': longitude, 'priority': priority}
-                )
-                
-                if s_created:
-                    Report.objects.create(site=site, status='not_visited')
-                    ActivityAlert.objects.create(message=f"Bulk imported site {site_id}.", user=user, site=site, alert_type='UPLOAD')
-                    
-                success_count += 1
-            
-            messages.success(request, f"Successfully imported/updated {success_count} sites! {error_count} rows skipped.")
-            return redirect('site_visit_list')
-            
-        except Exception as e:
-            messages.error(request, f"Error reading file. Ensure it matches the template format. ({str(e)})")
-            return redirect('import_sites')
-
-    return render(request, 'reports/import_sites.html')
-
-@login_required
-def report_issue(request, site_id):
-    if request.method == 'POST':
-        site = get_object_or_404(Site, id=site_id)
-        severity = request.POST.get('severity', 'Minor')
-        description = request.POST.get('description', 'No description provided.')
-        SiteIssue.objects.create(site=site, reported_by=request.user, severity=severity, description=description)
-        ActivityAlert.objects.create(message=f"{severity} issue logged for this site.", user=request.user, site=site, alert_type='REWORK')
-    return redirect('site_visit_list')
-
-@login_required
-def site_issues_list(request):
-    user = request.user
-    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer']):
-        issues = SiteIssue.objects.filter(is_resolved=False).order_by('-created_at')
-        projects = Project.objects.filter(sites__issues__is_resolved=False).distinct()
-    elif hasattr(user, 'profile') and user.profile.role == 'Client':
-        issues = SiteIssue.objects.filter(site__project__client=user.profile.client, is_resolved=False).order_by('-created_at')
-        projects = Project.objects.filter(client=user.profile.client, sites__issues__is_resolved=False).distinct()
-    else:
-        issues = SiteIssue.objects.filter(site__assigned_contractors=user, is_resolved=False).order_by('-created_at')
-        projects = Project.objects.filter(sites__assigned_contractors=user, sites__issues__is_resolved=False).distinct()
-
-    return render(request, 'reports/site_issues.html', {'issues': issues, 'projects': projects})
