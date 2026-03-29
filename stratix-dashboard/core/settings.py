@@ -1,7 +1,7 @@
 import os
-import dj_database_url
 from pathlib import Path
 from import_export.formats.base_formats import XLSX, CSV
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -54,7 +54,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'reports.context_processors.live_alerts', # Matches live_alerts in your context_processors.py
+                'reports.context_processors.live_alerts', # Matches your context_processors.py function
             ],
         },
     },
@@ -64,7 +64,6 @@ WSGI_APPLICATION = 'core.wsgi.application'
 ASGI_APPLICATION = 'core.asgi.application'
 
 # Database configuration for Supabase (PostgreSQL)
-# Uses DATABASE_URL from your Render environment variables
 DATABASES = {
     'default': dj_database_url.config(
         default='sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3'),
@@ -112,27 +111,37 @@ CHANNEL_LAYERS = {
 # ---------------------------------------------------------
 # PRODUCTION SECURITY & CSRF FIX
 # ---------------------------------------------------------
-# ---------------------------------------------------------
-# PRODUCTION SECURITY & CSRF FIX
-# ---------------------------------------------------------
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    
-    # Read the origins from your environment variable
-    # If the variable is missing, it defaults to an empty list
-    csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+    # Read origins from environment variable or auto-generate from ALLOWED_HOSTS
+    csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS')
     if csrf_origins:
         CSRF_TRUSTED_ORIGINS = csrf_origins.split(',')
-    
-    # Extra security headers
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
+    else:
+        CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS if host not in ['127.0.0.1', 'localhost']]
 
 # ---------------------------------------------------------
 # JAZZMIN CONFIGURATION (Dark Mode Admin)
 # ---------------------------------------------------------
+JAZZMIN_SETTINGS = {
+    "site_title": "Stratix Admin",
+    "site_header": "Stratix",
+    "site_brand": "STRATIX COMMAND",
+    "site_logo": "images/stratix-logo.png",
+    "welcome_sign": "Welcome to the Stratix Global Command Center",
+    "copyright": "Stratix Ltd",
+    "search_model": ["reports.Site", "auth.User"],
+    "topmenu_links": [
+        {"name": "Home",  "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "Dashboard", "url": "dashboard_home"},
+        {"model": "auth.User"},
+    ],
+    "show_sidebar": True,
+    "navigation_expanded": True,
+}
+
 JAZZMIN_UI_TWEAKS = {
     "theme": "darkly",
     "dark_mode_theme": "darkly",
