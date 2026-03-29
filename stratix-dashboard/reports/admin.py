@@ -14,21 +14,17 @@ admin.site.index_title = "Global Database Administration"
 
 # ---------------------------------------------------------
 # UI FIX: Searchable Dropdowns for Users & Groups
-# This removes the squished boxes and replaces them with a Search Icon / Select UI.
 # ---------------------------------------------------------
-# Re-register Group so it can be searched
 admin.site.unregister(Group)
 @admin.register(Group)
 class CustomGroupAdmin(BaseGroupAdmin):
     search_fields = ('name',)
 
-# Register Permissions so they can be searched
 @admin.register(Permission)
 class PermissionAdmin(admin.ModelAdmin):
     search_fields = ('name', 'codename')
     list_display = ('name', 'content_type', 'codename')
 
-# Re-register User to use the sleek Search Bars
 admin.site.unregister(User)
 @admin.register(User)
 class CustomUserAdmin(BaseUserAdmin):
@@ -71,16 +67,7 @@ class SiteAdmin(admin.ModelAdmin):
     list_filter = ('priority', 'project__client', 'project')
     search_fields = ('site_id', 'site_name', 'location')
     inlines = [SitePhotoInline] 
-    
-    # 🚀 FIX: This transforms the squished contractor box into a searchable dropdown!
     autocomplete_fields = ['assigned_contractors']
-
-@admin.register(SiteIssue)
-class SiteIssueAdmin(admin.ModelAdmin):
-    list_display = ('site', 'severity', 'is_resolved', 'reported_by', 'created_at')
-    list_filter = ('severity', 'is_resolved')
-    search_fields = ('site__site_id', 'description')
-    autocomplete_fields = ['site', 'reported_by']
 
 @admin.register(Report)
 class ReportAdmin(admin.ModelAdmin):
@@ -94,8 +81,6 @@ class UserProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'role', 'client')
     list_filter = ('role', 'client')
     search_fields = ('user__username', 'user__first_name', 'user__last_name')
-    
-    # Make the User Profile assignment searchable too
     autocomplete_fields = ['user']
 
 @admin.register(SitePhoto)
@@ -111,6 +96,13 @@ class SitePhotoAdmin(admin.ModelAdmin):
         return "No Image"
     image_thumbnail.short_description = 'Photo'
 
+@admin.register(SiteIssue)
+class SiteIssueAdmin(admin.ModelAdmin):
+    list_display = ('site', 'severity', 'is_resolved', 'reported_by', 'created_at')
+    list_filter = ('severity', 'is_resolved')
+    search_fields = ('site__site_id', 'description')
+    autocomplete_fields = ['site', 'reported_by']
+
 # ---------------------------------------------------------
 # AUDIT LOG PROTECTION
 # ---------------------------------------------------------
@@ -125,7 +117,10 @@ class ActivityAlertAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
+        
     def has_change_permission(self, request, obj=None):
         return False
+        
+    # FIX: Allows Superusers to delete alerts so they can successfully cascade delete Sites
     def has_delete_permission(self, request, obj=None):
-        return False
+        return request.user.is_superuser
