@@ -11,6 +11,7 @@ urlpatterns = [
     path('rework/upload/<int:photo_id>/', views.rework_upload, name='rework_upload'),
     path('qa/', views.qa_hub, name='qa_hub'),
     path('qa/review/<int:site_id>/', views.qa_review, name='qa_review'),
+    path('qa/approve-report/<int:report_id>/', views.approve_report, name='approve_report'), # NEW WORKFLOW
     path('tech-writer/', views.tech_writer_hub, name='tech_writer_hub'),
     path('tech-writer/draft/<int:report_id>/', views.draft_report, name='draft_report'),
     path('logout/', views.custom_logout, name='logout'),
@@ -18,7 +19,6 @@ urlpatterns = [
     path('map/', views.geographical_map_view, name='global_map'),
     path('export-csv/', views.export_performance_csv, name='export_performance_csv'),
     
-    # PWA URLs (Serving the manifest and service worker directly)
     path('manifest.json', TemplateView.as_view(template_name='reports/manifest.json', content_type='application/json'), name='manifest'),
     path('sw.js', TemplateView.as_view(template_name='reports/sw.js', content_type='application/javascript'), name='sw'),
 ]
