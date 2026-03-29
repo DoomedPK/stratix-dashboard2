@@ -9,7 +9,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY: Use environment variables for sensitive data
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-fallback-key-for-dev-only')
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,stratixjm-dashboard.onrender.com').split(',')
+
+# Clean Allowed Hosts by stripping spaces from Render dashboard
+raw_hosts = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,stratixjm-dashboard.onrender.com')
+ALLOWED_HOSTS = [host.strip() for host in raw_hosts.split(',') if host.strip()]
 
 INSTALLED_APPS = [
     'jazzmin',
@@ -96,12 +99,14 @@ CHANNEL_LAYERS = {
 }
 
 # ---------------------------------------------------------
-# CSRF FIX (Moved OUTSIDE of the DEBUG check!)
+# FOOLPROOF CSRF FIX
 # ---------------------------------------------------------
-csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
-if csrf_origins:
-    CSRF_TRUSTED_ORIGINS = csrf_origins.split(',')
+csrf_origins_env = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+if csrf_origins_env:
+    # Split and clean the environment variable
+    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins_env.split(',') if origin.strip()]
 else:
+    # Auto-generate from ALLOWED_HOSTS and clean the output
     CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS if host not in ['127.0.0.1', 'localhost']]
 
 # ---------------------------------------------------------
