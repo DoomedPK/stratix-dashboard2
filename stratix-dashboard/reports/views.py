@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.db.models import Q
 from django.contrib.auth.models import User
-from .models import Site, SitePhoto, Report, ActivityAlert, Project
+from .models import Site, SitePhoto, Report, ActivityAlert, Project, SiteIssue
 from django.utils.timezone import now
 import io
 from django.contrib import messages
@@ -229,15 +229,15 @@ def site_visit_list(request):
     user = request.user
     if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer']):
         reports_list = Report.objects.all()
+        projects = Project.objects.all()
     elif hasattr(user, 'profile') and user.profile.role == 'Client':
         reports_list = Report.objects.filter(site__project__client=user.profile.client)
+        projects = Project.objects.filter(client=user.profile.client)
     else:
         reports_list = Report.objects.filter(site__assigned_contractors=user)
+        projects = Project.objects.filter(sites__assigned_contractors=user).distinct()
 
-    search = request.GET.get('search', '')
-    if search:
-        reports_list = reports_list.filter(Q(site__site_id__icontains=search) | Q(site__site_name__icontains=search))
-    return render(request, 'reports/site_list.html', {'reports': reports_list})
+    return render(request, 'reports/site_list.html', {'reports': reports_list, 'projects': projects})
 
 @login_required
 def rework_log(request):
@@ -442,8 +442,8 @@ def export_performance_csv(request):
 @login_required
 def import_sites(request):
     user = request.user
-    # Only Admins and Clients can bulk import sites
-    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Client'])):
+    # FIX: Only Admins can bulk import sites (Removed Client)
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role == 'Admin')):
         return redirect('dashboard_home')
 
     if request.method == 'POST':
@@ -457,7 +457,6 @@ def import_sites(request):
             return redirect('import_sites')
 
         try:
-            # Handle BOM and decode
             decoded_file = file.read().decode('utf-8-sig')
             io_string = io.StringIO(decoded_file)
             reader = csv.DictReader(io_string)
@@ -466,9 +465,7 @@ def import_sites(request):
             error_count = 0
             
             for row in reader:
-                # Clean headers and values to prevent typo crashes
                 clean_row = {k.strip().lower(): v.strip() for k, v in row.items() if k}
-                
                 site_id = clean_row.get('site_id')
                 site_name = clean_row.get('site_name', 'Unnamed Site')
                 project_name = clean_row.get('project')
@@ -481,32 +478,16 @@ def import_sites(request):
                     error_count += 1
                     continue
                     
-                # Safely parse coordinates
                 latitude = float(lat_val) if lat_val else None
                 longitude = float(lng_val) if lng_val else None
                     
-                # 1. Match or Create the Project
                 project, p_created = Project.objects.get_or_create(name=project_name)
-                # Auto-link the project to the client if a client uploads it
-                if p_created and hasattr(user, 'profile') and user.profile.role == 'Client':
-                    if user.profile.client:
-                        project.client = user.profile.client
-                        project.save()
                 
-                # 2. Create or Update the Site
                 site, s_created = Site.objects.update_or_create(
                     site_id=site_id,
-                    defaults={
-                        'site_name': site_name,
-                        'project': project,
-                        'location': location,
-                        'latitude': latitude,
-                        'longitude': longitude,
-                        'priority': priority
-                    }
+                    defaults={'site_name': site_name, 'project': project, 'location': location, 'latitude': latitude, 'longitude': longitude, 'priority': priority}
                 )
                 
-                # 3. Auto-generate the Report tracker if it's a brand new site
                 if s_created:
                     Report.objects.create(site=site, status='not_visited')
                     ActivityAlert.objects.create(message=f"Bulk imported site {site_id}.", user=user, site=site, alert_type='UPLOAD')
@@ -521,3 +502,28 @@ def import_sites(request):
             return redirect('import_sites')
 
     return render(request, 'reports/import_sites.html')
+
+@login_required
+def report_issue(request, site_id):
+    if request.method == 'POST':
+        site = get_object_or_404(Site, id=site_id)
+        severity = request.POST.get('severity', 'Minor')
+        description = request.POST.get('description', 'No description provided.')
+        SiteIssue.objects.create(site=site, reported_by=request.user, severity=severity, description=description)
+        ActivityAlert.objects.create(message=f"{severity} issue logged for this site.", user=request.user, site=site, alert_type='REWORK')
+    return redirect('site_visit_list')
+
+@login_required
+def site_issues_list(request):
+    user = request.user
+    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer']):
+        issues = SiteIssue.objects.filter(is_resolved=False).order_by('-created_at')
+        projects = Project.objects.filter(sites__issues__is_resolved=False).distinct()
+    elif hasattr(user, 'profile') and user.profile.role == 'Client':
+        issues = SiteIssue.objects.filter(site__project__client=user.profile.client, is_resolved=False).order_by('-created_at')
+        projects = Project.objects.filter(client=user.profile.client, sites__issues__is_resolved=False).distinct()
+    else:
+        issues = SiteIssue.objects.filter(site__assigned_contractors=user, is_resolved=False).order_by('-created_at')
+        projects = Project.objects.filter(sites__assigned_contractors=user, sites__issues__is_resolved=False).distinct()
+
+    return render(request, 'reports/site_issues.html', {'issues': issues, 'projects': projects})
