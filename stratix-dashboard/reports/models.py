@@ -154,3 +154,21 @@ def trigger_client_fetch(sender, instance, created, **kwargs):
             'global_ping',
             {'type': 'ping_client'}
         )
+
+# ... Keep all your existing models ...
+
+class SiteIssue(models.Model):
+    SEVERITY_CHOICES = [
+        ('Minor', 'Minor'),
+        ('Major', 'Major'),
+        ('Critical', 'Critical'),
+    ]
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='issues')
+    reported_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    description = models.TextField()
+    severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default='Minor')
+    is_resolved = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.site.site_id} - {self.severity} Issue"
