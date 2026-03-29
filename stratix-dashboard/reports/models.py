@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import User, Group
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 class Client(models.Model):
     name = models.CharField(max_length=200, unique=True)
@@ -143,3 +145,12 @@ def sync_role_and_group(sender, instance, **kwargs):
         group, _ = Group.objects.get_or_create(name=group_name)
         instance.user.groups.clear()
         instance.user.groups.add(group)
+
+@receiver(post_save, sender=ActivityAlert)
+def trigger_client_fetch(sender, instance, created, **kwargs):
+    if created:
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'global_ping',
+            {'type': 'ping_client'}
+        )

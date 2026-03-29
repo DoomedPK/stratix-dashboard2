@@ -25,7 +25,7 @@
                 <div class="row g-3">
                     {% for photo in photos %}
                     <div class="col-md-6">
-                        <a href="{{ photo.image.url }}" target="_blank">
+                        <a href="{{ photo.image.url }}" data-fancybox="gallery" data-caption="QA Notes: {{ photo.qa_feedback|default:'None' }}">
                             <img src="{{ photo.image.url }}" class="gallery-img" alt="Site Photo">
                         </a>
                         <div class="p-2 mt-1 bg-dark rounded border border-secondary small text-muted">

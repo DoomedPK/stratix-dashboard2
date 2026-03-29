@@ -1,4 +1,6 @@
 import json
+import csv
+from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
@@ -162,8 +164,17 @@ def upload_photos(request):
                     site=site, contractor=user, image=image, status='PENDING',
                     qa_feedback=f"Category: {category} | Notes: {notes}"
                 )
+            
+            # NEW: Check if the request is an AJAX upload
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'status': 'success'})
+            
+            # Fallback for standard uploads
             return redirect('site_visit_list')
+            
         except Site.DoesNotExist:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'status': 'error', 'message': 'Site not found'}, status=400)
             pass
 
     if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA']):
@@ -369,3 +380,42 @@ def geographical_map_view(request):
     }
     
     return render(request, 'reports/geographical_map_view.html', context)
+
+@login_required
+def export_performance_csv(request):
+    user = request.user
+    # Ensure only Clients or Admins can download this data
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Client'])):
+        return redirect('dashboard_home')
+    
+    # Filter based on role and project
+    if hasattr(user, 'profile') and user.profile.role == 'Client':
+        sites = Site.objects.filter(project__client=user.profile.client)
+    else:
+        sites = Site.objects.all()
+        
+    selected_project_id = request.GET.get('project')
+    if selected_project_id:
+        sites = sites.filter(project_id=selected_project_id)
+        
+    contractors = User.objects.filter(assigned_sites__in=sites).distinct()
+    
+    # Create the CSV Response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="Contractor_Performance_Export.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow(['Contractor Name', 'Total Submissions', 'Reworks', 'Rework Rate (%)', 'Common Errors'])
+    
+    for c in contractors:
+        c_photos = SitePhoto.objects.filter(contractor=c, site__in=sites)
+        total_subs = c_photos.count()
+        reworks = c_photos.filter(status='REJECTED').count()
+        rework_rate = round((reworks / total_subs * 100), 1) if total_subs > 0 else 0
+        
+        recent_reworks = c_photos.filter(status='REJECTED').exclude(qa_feedback__isnull=True).exclude(qa_feedback='').order_by('-uploaded_at')[:2]
+        errors = " | ".join([p.qa_feedback for p in recent_reworks]) if recent_reworks else "None"
+        
+        writer.writerow([f"{c.first_name} {c.last_name}".strip() or c.username, total_subs, reworks, rework_rate, errors])
+        
+    return response

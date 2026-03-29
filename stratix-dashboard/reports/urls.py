@@ -28,6 +28,7 @@ urlpatterns = [
     
     # NEW: Background API for Live Pop-Up Notifications
     path('api/alerts/', views.api_check_alerts, name='api_check_alerts'),
+    path('export-csv/', views.export_performance_csv, name='export_performance_csv'),
     #Geohraphical Map
     path('global-map/', views.geographical_map_view, name='global_map'),
 ]

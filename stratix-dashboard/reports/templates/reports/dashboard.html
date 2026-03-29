@@ -148,20 +148,28 @@
             {% if show_performance %}
             <div class="card p-4 shadow-sm border-info-left h-auto">
                 <div class="row align-items-center mb-4">
-                    <div class="col-md-6">
+                    <div class="col-md-7">
                         <h5 class="fw-bold mb-0"><i class="fas fa-stopwatch me-2 text-info"></i> Performance & Turnaround</h5>
-                        <p class="text-muted small mb-0 mt-1">Avg time to final report delivery: <strong><span class="text-white fs-5">{{ avg_tat }} Days</span></strong></p>
+                        <p class="text-muted small mb-0 mt-2 d-flex align-items-center flex-wrap gap-2">
+                            Avg time to final report delivery: 
+                            <span class="badge bg-info text-dark" style="font-size: 0.9rem;">{{ avg_tat }} Days</span>
+                        </p>
                     </div>
                     
                     {% if is_client_or_admin %}
-                    <div class="col-md-6 text-md-end mt-3 mt-md-0">
-                        <label class="text-light me-2 fw-semibold small text-uppercase">Review Contractor:</label>
-                        <select id="contractorSelect" class="form-select form-select-sm bg-dark text-light border-secondary d-inline-block w-auto shadow-none" onchange="showContractorStats()">
-                            <option value="">-- Select a Contractor --</option>
-                            {% for c in contractor_stats %}
-                                <option value="{{ c.id }}">{{ c.name }}</option>
-                            {% endfor %}
-                        </select>
+                    <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex justify-content-md-end align-items-center gap-3 flex-wrap">
+                        <a href="{% url 'export_performance_csv' %}?project={{ request.GET.project }}" class="btn btn-sm btn-outline-success fw-bold">
+                            <i class="fas fa-file-csv me-1"></i> Export CSV
+                        </a>
+                        <div>
+                            <label class="text-light me-2 fw-semibold small text-uppercase">Review Contractor:</label>
+                            <select id="contractorSelect" class="form-select form-select-sm bg-dark text-light border-secondary d-inline-block w-auto shadow-none" onchange="showContractorStats()">
+                                <option value="">-- Select a Contractor --</option>
+                                {% for c in contractor_stats %}
+                                    <option value="{{ c.id }}">{{ c.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
                     {% endif %}
                 </div>

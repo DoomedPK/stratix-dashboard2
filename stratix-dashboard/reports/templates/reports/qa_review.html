@@ -27,7 +27,7 @@
         <div class="col-md-6 col-xl-4">
             <div class="photo-card shadow-sm h-100 d-flex flex-column">
                 
-                <a href="{{ photo.image.url }}" target="_blank">
+                <a href="{{ photo.image.url }}" data-fancybox="gallery" data-caption="{{ photo.contractor.username }} - {{ photo.qa_feedback|default:'No Notes' }}">
                     <img src="{{ photo.image.url }}" class="site-image" alt="Site Photo">
                 </a>
                 
