@@ -14,12 +14,13 @@
 <div class="container py-4">
     <div class="row mb-4 align-items-center">
         <div class="col-md-12">
-            <h2 class="fw-bold mb-3 mb-md-0"><i class="fas fa-clipboard-check me-2 text-success"></i> QA Validation Hub</h2>
+            <h2 class="fw-bold mb-3 mb-md-0"><i class="fas fa-clipboard-check me-2 text-success"></i> QA Photo Validation Hub</h2>
             <p class="text-muted">Sites with pending photos awaiting quality assurance review.</p>
         </div>
     </div>
 
-    <div class="card p-0 shadow-sm overflow-hidden">
+    {% if sites %}
+    <div class="card p-0 shadow-sm overflow-hidden mb-5">
         <div class="table-responsive">
             <table class="table table-dark table-hover mb-0 align-middle">
                 <thead>
@@ -45,8 +46,61 @@
             </table>
         </div>
     </div>
-</div>
-{% endblock %}
+    {% else %}
+    <div class="card p-4 text-center shadow-sm mb-5">
+        <i class="fas fa-check-circle mb-3 fs-2 text-success opacity-75"></i>
+        <h5 class="text-light">Queue Empty</h5>
+        <p class="mb-0 text-muted">No pending photos await QA review.</p>
+    </div>
+    {% endif %}
 
-{% block extra_js %}
+    <div class="row mb-4 align-items-center">
+        <div class="col-md-12">
+            <h2 class="fw-bold mb-3 mb-md-0"><i class="fas fa-file-signature me-2 text-primary"></i> Reports Awaiting Final Approval</h2>
+            <p class="text-muted">Drafted technical reports awaiting QA sign-off before client delivery.</p>
+        </div>
+    </div>
+
+    {% if drafted_reports %}
+    <div class="card p-0 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th class="ps-4 py-3">Site ID</th>
+                        <th class="py-3">Draft Document</th>
+                        <th class="py-3">Tech Writer Notes</th>
+                        <th class="pe-4 py-3 text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in drafted_reports %}
+                    <tr>
+                        <td class="ps-4 fw-bold text-primary">{{ report.site.site_id }}</td>
+                        <td>
+                            {% if report.final_document %}
+                                <a href="{{ report.final_document.url }}" target="_blank" class="btn btn-sm btn-outline-info"><i class="fas fa-file-pdf me-1"></i> View Draft PDF</a>
+                            {% endif %}
+                        </td>
+                        <td><i class="fas fa-comment-dots text-muted me-2"></i>{{ report.comments|default:"None" }}</td>
+                        <td class="pe-4 text-end">
+                            <form method="POST" action="{% url 'approve_report' report.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-success fw-bold"><i class="fas fa-check-double me-1"></i> Approve & Publish</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="card p-4 text-center shadow-sm">
+        <i class="fas fa-file-alt mb-3 fs-2 text-muted opacity-75"></i>
+        <h5 class="text-light">No Drafts Pending</h5>
+        <p class="mb-0 text-muted">Technical Writers have not submitted any drafts for review.</p>
+    </div>
+    {% endif %}
+</div>
 {% endblock %}
