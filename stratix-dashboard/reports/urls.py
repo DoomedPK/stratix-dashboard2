@@ -4,9 +4,14 @@ from . import views
 
 urlpatterns = [
     path('', views.dashboard_home, name='dashboard_home'),
-    path('import-sites/', views.import_sites, name='import_sites'), # NEW: Bulk Import
+    path('import-sites/', views.import_sites, name='import_sites'), 
     path('upload/', views.upload_photos, name='upload_photos'),
     path('sites/', views.site_visit_list, name='site_visit_list'),
+    
+    # NEW SITE ISSUE ROUTES
+    path('issues/', views.site_issues_list, name='site_issues'),
+    path('issues/report/<int:site_id>/', views.report_issue, name='report_issue'),
+    
     path('start-visit/<int:report_id>/', views.start_visit, name='start_visit'),
     path('rework/', views.rework_log, name='rework_log'),
     path('rework/upload/<int:photo_id>/', views.rework_upload, name='rework_upload'),
