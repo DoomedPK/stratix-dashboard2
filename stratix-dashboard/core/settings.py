@@ -99,14 +99,17 @@ CHANNEL_LAYERS = {
 }
 
 # ---------------------------------------------------------
+# RENDER PROXY FIX (Tells Django to trust Render's HTTPS)
+# ---------------------------------------------------------
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# ---------------------------------------------------------
 # FOOLPROOF CSRF FIX
 # ---------------------------------------------------------
 csrf_origins_env = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
 if csrf_origins_env:
-    # Split and clean the environment variable
     CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins_env.split(',') if origin.strip()]
 else:
-    # Auto-generate from ALLOWED_HOSTS and clean the output
     CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS if host not in ['127.0.0.1', 'localhost']]
 
 # ---------------------------------------------------------
