@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+    .upload-area { border: 2px dashed #f59e0b; border-radius: 12px; padding: 40px; text-align: center; background-color: #0f172a; transition: 0.3s;}
+    .upload-area:hover { background-color: #1e2937; cursor: pointer; }
+    .form-control { background-color: #0f172a; border: 1px solid #334155; color: white; }
+    .form-control:focus { background-color: #0f172a; color: white; border-color: #f59e0b; box-shadow: none; }
+    .rejected-image { width: 100%; max-height: 250px; object-fit: contain; border-radius: 8px; border: 2px solid #ef4444; background-color: #000; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <a href="{% url 'rework_log' %}" class="btn btn-sm btn-outline-secondary mb-3"><i class="fas fa-arrow-left me-2"></i>Back to Rework Log</a>
+    <h2 class="fw-bold mb-4"><i class="fas fa-tools me-2 text-warning"></i> Submit Fix for {{ photo.site.site_id }}</h2>
+    
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="card p-4 shadow-sm h-100 border-danger border-opacity-50">
+                <h5 class="fw-bold text-danger mb-3"><i class="fas fa-times-circle me-2"></i>Rejected Photo</h5>
+                {% if photo.image %}
+                    <img src="{{ photo.image.url }}" class="rejected-image mb-3" alt="Rejected">
+                {% endif %}
+                <div class="alert alert-danger bg-transparent border-danger text-danger mb-0">
+                    <strong class="d-block mb-1">QA Feedback / Reason:</strong>
+                    {{ photo.qa_feedback|default:"No specific reason provided." }}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-7">
+            <div class="card p-4 shadow-sm h-100">
+                <h5 class="fw-bold text-warning mb-4"><i class="fas fa-upload me-2"></i>Upload Replacement</h5>
+                <form action="{% url 'rework_upload' photo.id %}" method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Select New Photo</label>
+                        <div class="upload-area position-relative" id="dropZone">
+                            <i class="fas fa-camera fs-1 text-warning mb-3" id="uploadIcon"></i>
+                            <h5 id="uploadText">Select the corrected photo</h5>
+                            <input type="file" name="replacement_image" id="fileInput" class="form-control position-absolute top-0 start-0 w-100 h-100" style="opacity: 0; cursor: pointer;" accept="image/*" required>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Notes for QA (Optional)</label>
+                        <textarea class="form-control" name="notes" rows="3" placeholder="Explain how you fixed the issue..."></textarea>
+                    </div>
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-warning px-5 fw-bold text-dark"><i class="fas fa-paper-plane me-2"></i> Submit Fix to QA</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            document.getElementById('uploadText').innerText = 'Replacement photo selected!';
+            document.getElementById('uploadText').className = 'text-success fw-bold';
+            document.getElementById('uploadIcon').className = 'fas fa-check-circle fs-1 text-success mb-3';
+            document.getElementById('dropZone').style.borderColor = '#10b981';
+        }
+    });
+</script>
+{% endblock %}

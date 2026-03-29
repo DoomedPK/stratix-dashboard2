@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Geographical Map View</h2>
+    <p>Live status of all operational sites.</p>
+
+    <div id="siteMap" style="height: 600px; width: 100%; border-radius: 8px; border: 2px solid #ccc;"></div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var map = L.map('siteMap').setView([20, 0], 2);
+
+        // 1. FIXED: Using CARTO Dark Matter tiles to fix the blank screen block
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+        }).addTo(map);
+
+        var sites = {{ sites_json|safe }};
+        var bounds = [];
+
+        sites.forEach(function(site) {
+            
+            // 2. FIXED: Using site.priority instead of site.status
+            var pinColor = "#28a745"; // Default Green (Low Priority)
+            if (site.priority === "Medium") {
+                pinColor = "#ffc107"; // Yellow
+            } else if (site.priority === "High") {
+                pinColor = "#dc3545"; // Red
+            }
+
+            var marker = L.circleMarker([site.lat, site.lng], {
+                radius: 8,
+                fillColor: pinColor,
+                color: "#000",
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 0.9
+            }).addTo(map);
+
+            var popupContent = `
+                <b>${site.name}</b><br>
+                Priority: <strong>${site.priority}</strong>
+            `;
+            marker.bindPopup(popupContent);
+            
+            bounds.push([site.lat, site.lng]); 
+        });
+
+        if (bounds.length > 0) {
+            map.fitBounds(bounds, { padding: [30, 30] });
+        }
+    });
+</script>
+{% endblock %}

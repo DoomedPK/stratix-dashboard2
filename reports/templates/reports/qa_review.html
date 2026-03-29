@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+    .photo-card { border: 1px solid #334155; background-color: #1e2937; border-radius: 8px; overflow: hidden; }
+    .site-image { width: 100%; height: 250px; object-fit: cover; background-color: #000; cursor: pointer; transition: 0.2s;}
+    .site-image:hover { opacity: 0.8; }
+    .form-control { background-color: #0f172a; border: 1px solid #334155; color: white; }
+    .form-control:focus { background-color: #0f172a; color: white; border-color: #38bdf8; box-shadow: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <a href="{% url 'qa_hub' %}" class="btn btn-sm btn-outline-secondary mb-3"><i class="fas fa-arrow-left me-2"></i>Back to Hub</a>
+    
+    <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-3 mb-4">
+        <div>
+            <h3 class="fw-bold mb-0 text-white"><i class="fas fa-search-location text-success me-2"></i> Review: {{ site.site_id }}</h3>
+            <p class="text-muted mb-0 mt-1">{{ site.site_name }} | {{ photos.count }} Pending Photos</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        {% for photo in photos %}
+        <div class="col-md-6 col-xl-4">
+            <div class="photo-card shadow-sm h-100 d-flex flex-column">
+                
+                <a href="{{ photo.image.url }}" data-fancybox="gallery" data-caption="{{ photo.contractor.username }} - {{ photo.qa_feedback|default:'No Notes' }}">
+                    <img src="{{ photo.image.url }}" class="site-image" alt="Site Photo">
+                </a>
+                
+                <div class="p-3 d-flex flex-column flex-grow-1">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="badge bg-primary text-uppercase">{{ photo.qa_feedback|default:"No Category"|slice:":25" }}...</span>
+                        <span class="text-muted small">{{ photo.uploaded_at|date:"M d, Y" }}</span>
+                    </div>
+                    <p class="text-light small mb-3 flex-grow-1"><i class="fas fa-user-hard-hat text-warning me-1"></i> {{ photo.contractor.username }}</p>
+                    
+                    <form action="{% url 'qa_review' site.id %}" method="POST" class="mt-auto border-top border-secondary pt-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="photo_id" value="{{ photo.id }}">
+                        
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-muted mb-1">QA Feedback (Required if rejecting)</label>
+                            <textarea class="form-control form-control-sm" name="feedback" rows="2" placeholder="Type specific error if rejecting..."></textarea>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" name="action" value="approve" class="btn btn-sm btn-success flex-grow-1 fw-bold"><i class="fas fa-check me-1"></i> Approve</button>
+                            <button type="submit" name="action" value="reject" class="btn btn-sm btn-outline-danger flex-grow-1 fw-bold"><i class="fas fa-times me-1"></i> Reject</button>
+                        </div>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <i class="fas fa-check-circle fs-1 text-success mb-3 opacity-75"></i>
+            <h4 class="text-light">All Photos Validated!</h4>
+            <p class="text-muted">There are no pending photos left for this site.</p>
+            <a href="{% url 'qa_hub' %}" class="btn btn-primary mt-2">Return to Hub</a>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% endblock %}

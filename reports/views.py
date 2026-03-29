@@ -1,0 +1,464 @@
+import json
+import csv
+from django.http import HttpResponse
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import logout
+from django.db.models import Q
+from django.contrib.auth.models import User
+from .models import Site, SitePhoto, Report, ActivityAlert, Project
+from django.http import JsonResponse
+from django.utils.timezone import now
+import datetime
+
+@login_required
+def dashboard_home(request):
+    user = request.user
+    
+    # 1. Base Permissions
+    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer']):
+        base_sites = Site.objects.all()
+        base_reports = Report.objects.all()
+        available_projects = Project.objects.all()
+    elif hasattr(user, 'profile') and user.profile.role == 'Client':
+        base_sites = Site.objects.filter(project__client=user.profile.client)
+        base_reports = Report.objects.filter(site__in=base_sites)
+        available_projects = Project.objects.filter(client=user.profile.client)
+    else:
+        base_sites = Site.objects.filter(assigned_contractors=user)
+        base_reports = Report.objects.filter(site__in=base_sites)
+        available_projects = Project.objects.filter(sites__in=base_sites).distinct()
+
+    # 2. Project Filter
+    selected_project_id = request.GET.get('project')
+    if selected_project_id:
+        sites = base_sites.filter(project_id=selected_project_id)
+        reports = base_reports.filter(site__project_id=selected_project_id)
+        current_project = available_projects.filter(id=selected_project_id).first()
+    else:
+        sites = base_sites
+        reports = base_reports
+        current_project = None
+
+    # 3. Metrics
+    total_sites_received = sites.count()
+    total_reports_completed = reports.filter(status='submitted').count()
+    total_reports_needs_completion = total_sites_received - total_reports_completed
+    
+    visits_completed = reports.filter(status__in=['site_data_submitted', 'qa_validation', 'engineer_review', 'submitted']).count()
+    reports_in_progress = reports.filter(status__in=['site_data_submitted', 'engineer_review']).count()
+    
+    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role == 'Client'):
+        pending_photos_validation = SitePhoto.objects.filter(site__in=sites, status='PENDING').count()
+    else:
+        pending_photos_validation = SitePhoto.objects.filter(status='PENDING').count()
+        
+    pending_report_validation = reports.filter(status='engineer_review').count()
+
+    # 4. Chart & Status Board
+    chart_data = [
+        reports.filter(status='not_visited').count(),
+        reports.filter(status='visit_in_progress').count(),
+        reports.filter(status='site_data_submitted').count(),
+        reports.filter(status='qa_validation').count(),
+        reports.filter(status='engineer_review').count(),
+        reports.filter(status='submitted').count(),
+    ]
+
+    status_labels = ['Not Visited', 'Visit In Progress', 'Site Data Submitted', 'QA Validation', 'Engineer Review', 'Completed/Delivered']
+    status_colors = ['#64748b', '#f59e0b', '#0ea5e9', '#f97316', '#8b5cf6', '#10b981']
+    status_data = [{'count': chart_data[i], 'label': status_labels[i], 'color': status_colors[i]} for i in range(6)]
+
+    status_board = [
+        {'stage': 'Pending QA Validation', 'count': pending_photos_validation, 'icon': 'fa-camera', 'color': 'warning', 'example': 'Photos uploaded by contractors, awaiting QA review.'},
+        {'stage': 'Tech Drafting In Progress', 'count': reports_in_progress, 'icon': 'fa-pen-nib', 'color': 'info', 'example': 'Approved sites currently being drafted into PDF reports.'},
+        {'stage': 'Completed & Delivered', 'count': total_reports_completed, 'icon': 'fa-check-double', 'color': 'success', 'example': 'Final technical reports successfully delivered.'},
+    ]
+
+    # 5. Mini Map Data
+    sites_data = []
+    for site in sites:
+        if site.latitude and site.longitude: 
+            sites_data.append({
+                'name': site.site_id,
+                'lat': float(site.latitude),
+                'lng': float(site.longitude),
+                'priority': site.priority  
+            })
+
+    # 6. Turnaround Time (TAT) Calculation
+    total_tat_days = 0
+    tat_count = 0
+    for r in reports.filter(status='submitted'):
+        final_alert = ActivityAlert.objects.filter(site=r.site, alert_type='UPLOAD', message__icontains='Final').order_by('-timestamp').first()
+        if final_alert:
+            delta = final_alert.timestamp - r.submitted_at
+            total_tat_days += delta.days
+            tat_count += 1
+            
+    avg_tat = round(total_tat_days / tat_count, 1) if tat_count > 0 else 0
+
+    # ---------------------------------------------------------
+    # NEW: 6-MONTH HISTORICAL TREND DATA
+    # ---------------------------------------------------------
+    import datetime
+    
+    trend_labels = []
+    tat_trend = []
+    rework_trend = []
+    
+    current_date = now().date()
+    
+    # Loop backwards through the last 6 months
+    for i in range(5, -1, -1):
+        target_month = (current_date.month - i - 1) % 12 + 1
+        target_year = current_date.year + ((current_date.month - i - 1) // 12)
+        
+        # Build the label (e.g., "Oct 2025")
+        month_label = datetime.date(target_year, target_month, 1).strftime('%b %Y')
+        trend_labels.append(month_label)
+        
+        # 1. Monthly TAT Calculation
+        m_reports = reports.filter(status='submitted') # We will filter dates via alerts to be safe
+        m_total_tat = 0
+        m_tat_count = 0
+        
+        for r in m_reports:
+            final_alert = ActivityAlert.objects.filter(site=r.site, alert_type='UPLOAD', message__icontains='Final', timestamp__year=target_year, timestamp__month=target_month).order_by('-timestamp').first()
+            if final_alert and hasattr(r, 'submitted_at') and r.submitted_at:
+                delta = final_alert.timestamp - r.submitted_at
+                m_total_tat += delta.days
+                m_tat_count += 1
+                
+        tat_trend.append(round(m_total_tat / m_tat_count, 1) if m_tat_count > 0 else 0)
+        
+        # 2. Monthly Rework Calculation
+        m_photos = SitePhoto.objects.filter(site__in=sites, uploaded_at__year=target_year, uploaded_at__month=target_month)
+        m_total_subs = m_photos.count()
+        m_reworks = m_photos.filter(status='REJECTED').count()
+        rework_trend.append(round((m_reworks / m_total_subs * 100), 1) if m_total_subs > 0 else 0)
+    
+    # 7. Contractor Performance Tracking (Least Privilege)
+    contractor_stats = []
+    is_client_or_admin = user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Client'])
+    is_contractor = hasattr(user, 'profile') and user.profile.role == 'Contractor'
+    
+    if is_client_or_admin:
+        contractors_to_track = User.objects.filter(assigned_sites__in=sites).distinct()
+    elif is_contractor:
+        contractors_to_track = User.objects.filter(id=user.id)
+    else:
+        contractors_to_track = []
+
+    for c in contractors_to_track:
+        c_photos = SitePhoto.objects.filter(contractor=c, site__in=sites)
+        total_subs = c_photos.count()
+        reworks = c_photos.filter(status='REJECTED').count()
+        rework_rate = round((reworks / total_subs * 100), 1) if total_subs > 0 else 0
+        
+        recent_reworks = c_photos.filter(status='REJECTED').exclude(qa_feedback__isnull=True).exclude(qa_feedback='').order_by('-uploaded_at')[:2]
+        common_errors = [p.qa_feedback for p in recent_reworks] if recent_reworks else ["No frequent errors detected."]
+
+        contractor_stats.append({
+            'id': c.id,
+            'name': f"{c.first_name} {c.last_name}".strip() or c.username,
+            'total_submissions': total_subs,
+            'rework_rate': rework_rate,
+            'common_errors': common_errors
+        })
+
+    context = {
+        'user': user,
+        'available_projects': available_projects,
+        'current_project': current_project,
+        'total_sites_received': total_sites_received,
+        'total_reports_needs_completion': total_reports_needs_completion,
+        'total_reports_completed': total_reports_completed,
+        'visits_completed': visits_completed,
+        'reports_in_progress': reports_in_progress,
+        'pending_photos_validation': pending_photos_validation,
+        'pending_report_validation': pending_report_validation,
+        'status_data': status_data,
+        'status_board': status_board,
+        'sites_json': json.dumps(sites_data),
+        'avg_tat': avg_tat,
+        'contractor_stats': contractor_stats,
+        'show_performance': is_client_or_admin or is_contractor,
+        'is_client_or_admin': is_client_or_admin,
+        'trend_labels': json.dumps(trend_labels),
+        'tat_trend': json.dumps(tat_trend),
+        'rework_trend': json.dumps(rework_trend),
+    }
+    return render(request, 'reports/dashboard.html', context)
+
+@login_required
+def upload_photos(request):
+    user = request.user
+    if request.method == 'POST':
+        site_id = request.POST.get('site_id')
+        category = request.POST.get('category')
+        notes = request.POST.get('notes')
+        images = request.FILES.getlist('site_images')
+        
+        try:
+            site = Site.objects.get(id=site_id)
+            for image in images:
+                SitePhoto.objects.create(
+                    site=site, contractor=user, image=image, status='PENDING',
+                    qa_feedback=f"Category: {category} | Notes: {notes}"
+                )
+            
+            # NEW: Check if the request is an AJAX upload
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'status': 'success'})
+            
+            # Fallback for standard uploads
+            return redirect('site_visit_list')
+            
+        except Site.DoesNotExist:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'status': 'error', 'message': 'Site not found'}, status=400)
+            pass
+
+    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA']):
+        sites = Site.objects.filter(reports__status='visit_in_progress').distinct()
+    else:
+        sites = Site.objects.filter(assigned_contractors=user, reports__status='visit_in_progress').distinct()
+        
+    return render(request, 'reports/upload_photo.html', {'sites': sites})
+
+@login_required
+def start_visit(request, report_id):
+    report = get_object_or_404(Report, id=report_id)
+    report.status = 'visit_in_progress'
+    report.save()
+    ActivityAlert.objects.create(
+        message=f"Contractor has arrived on site.", user=request.user, site=report.site, alert_type='CHECK_IN'
+    )
+    return redirect('site_visit_list')
+
+@login_required
+def site_visit_list(request):
+    user = request.user
+    
+    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer']):
+        reports_list = Report.objects.all()
+    elif hasattr(user, 'profile') and user.profile.role == 'Client':
+        reports_list = Report.objects.filter(site__project__client=user.profile.client)
+    else:
+        reports_list = Report.objects.filter(site__assigned_contractors=user)
+
+    search = request.GET.get('search', '')
+    if search:
+        reports_list = reports_list.filter(Q(site__site_id__icontains=search) | Q(site__site_name__icontains=search))
+    return render(request, 'reports/site_list.html', {'reports': reports_list})
+
+@login_required
+def rework_log(request):
+    user = request.user
+    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA']):
+        reworks = SitePhoto.objects.filter(status='REJECTED').order_by('-uploaded_at')
+    else:
+        reworks = SitePhoto.objects.filter(contractor=user, status='REJECTED').order_by('-uploaded_at')
+    return render(request, 'reports/rework_log.html', {'reworks': reworks})
+
+@login_required
+def rework_upload(request, photo_id):
+    photo = get_object_or_404(SitePhoto, id=photo_id, status='REJECTED')
+    if not request.user.is_superuser and request.user != photo.contractor:
+        return redirect('rework_log')
+
+    if request.method == 'POST':
+        new_image = request.FILES.get('replacement_image')
+        notes = request.POST.get('notes', '')
+        if new_image:
+            photo.image = new_image
+            photo.status = 'PENDING'
+            photo.qa_feedback = f"Rework Submitted | Notes: {notes}"
+            photo.save()
+            ActivityAlert.objects.create(
+                message=f"Contractor uploaded a fix.", user=request.user, site=photo.site, alert_type='UPLOAD'
+            )
+            return redirect('rework_log')
+    return render(request, 'reports/rework_upload.html', {'photo': photo})
+
+@login_required
+def qa_hub(request):
+    user = request.user
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA'])):
+        return redirect('dashboard_home')
+    sites_needing_review = Site.objects.filter(photos__status='PENDING').distinct()
+    return render(request, 'reports/qa_hub.html', {'sites': sites_needing_review})
+
+@login_required
+def qa_review(request, site_id):
+    user = request.user
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA'])):
+        return redirect('dashboard_home')
+
+    site = get_object_or_404(Site, id=site_id)
+    pending_photos = SitePhoto.objects.filter(site=site, status='PENDING')
+
+    if request.method == 'POST':
+        photo = get_object_or_404(SitePhoto, id=request.POST.get('photo_id'))
+        action = request.POST.get('action')
+        photo.qa_feedback = request.POST.get('feedback', '')
+        
+        if action == 'approve':
+            photo.status = 'APPROVED'
+        elif action == 'reject':
+            photo.status = 'REJECTED'
+            ActivityAlert.objects.create(message="QA rejected photo.", user=request.user, site=site, alert_type='REWORK')
+        photo.save()
+
+        if SitePhoto.objects.filter(site=site, status__in=['PENDING', 'REJECTED']).count() == 0 and SitePhoto.objects.filter(site=site).count() > 0:
+            report = Report.objects.filter(site=site).first()
+            if report and report.status == 'visit_in_progress':
+                report.status = 'site_data_submitted'
+                report.save()
+                ActivityAlert.objects.create(message="Site Validated. Ready for technical writing.", user=request.user, site=site, alert_type='UPLOAD')
+            return redirect('qa_hub')
+        return redirect('qa_review', site_id=site.id)
+
+    return render(request, 'reports/qa_review.html', {'site': site, 'photos': pending_photos})
+
+@login_required
+def tech_writer_hub(request):
+    user = request.user
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer'])):
+        return redirect('dashboard_home')
+        
+    reports_to_draft = Report.objects.filter(status='site_data_submitted')
+    return render(request, 'reports/tech_writer_hub.html', {'reports': reports_to_draft})
+
+@login_required
+def draft_report(request, report_id):
+    user = request.user
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer'])):
+        return redirect('dashboard_home')
+
+    report = get_object_or_404(Report, id=report_id)
+    approved_photos = SitePhoto.objects.filter(site=report.site, status='APPROVED')
+
+    if request.method == 'POST':
+        final_pdf = request.FILES.get('final_document')
+        comments = request.POST.get('comments', '')
+        
+        if final_pdf:
+            report.final_document = final_pdf
+            report.comments = comments
+            report.status = 'submitted' 
+            report.save()
+            
+            ActivityAlert.objects.create(
+                message="Final Technical Report uploaded.", user=request.user, site=report.site, alert_type='UPLOAD'
+            )
+            return redirect('tech_writer_hub')
+
+    return render(request, 'reports/draft_report.html', {'report': report, 'photos': approved_photos})
+
+@login_required
+def custom_logout(request):
+    logout(request)
+    return redirect('login')
+
+@login_required
+def api_check_alerts(request):
+    user = request.user
+    last_check_str = request.session.get('last_alert_check')
+    
+    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA']):
+        alerts = ActivityAlert.objects.all()
+    elif hasattr(user, 'profile') and user.profile.role == 'Client':
+        base_sites = Site.objects.filter(project__client=user.profile.client)
+        alerts = ActivityAlert.objects.filter(site__in=base_sites, alert_type='UPLOAD', message__icontains='Final')
+    elif hasattr(user, 'profile') and user.profile.role == 'Tech Writer':
+        alerts = ActivityAlert.objects.filter(message__icontains='technical writing')
+    else:
+        base_sites = Site.objects.filter(assigned_contractors=user)
+        alerts = ActivityAlert.objects.filter(site__in=base_sites)
+
+    if last_check_str:
+        last_check = datetime.datetime.fromisoformat(last_check_str)
+        new_alerts = alerts.filter(timestamp__gt=last_check).order_by('-timestamp')
+    else:
+        new_alerts = []
+
+    request.session['last_alert_check'] = now().isoformat()
+
+    alerts_data = []
+    for a in new_alerts:
+        alerts_data.append({
+            'message': a.message,
+            'site': a.site.site_id,
+            'type': a.alert_type
+        })
+
+    return JsonResponse({'new_alerts': alerts_data})
+
+@login_required
+def geographical_map_view(request):
+    user = request.user
+    
+    # Map Security: Users only see pins they are allowed to see
+    if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer']):
+        sites = Site.objects.all()
+    elif hasattr(user, 'profile') and user.profile.role == 'Client':
+        sites = Site.objects.filter(project__client=user.profile.client)
+    else:
+        sites = Site.objects.filter(assigned_contractors=user)
+    
+    sites_data = []
+    for site in sites:
+        if site.latitude and site.longitude:
+            sites_data.append({
+                'name': site.site_id,
+                'lat': float(site.latitude),
+                'lng': float(site.longitude),
+                'priority': site.priority 
+            })
+            
+    context = {
+        'sites_json': json.dumps(sites_data)
+    }
+    
+    return render(request, 'reports/geographical_map_view.html', context)
+
+@login_required
+def export_performance_csv(request):
+    user = request.user
+    # Ensure only Clients or Admins can download this data
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Client'])):
+        return redirect('dashboard_home')
+    
+    # Filter based on role and project
+    if hasattr(user, 'profile') and user.profile.role == 'Client':
+        sites = Site.objects.filter(project__client=user.profile.client)
+    else:
+        sites = Site.objects.all()
+        
+    selected_project_id = request.GET.get('project')
+    if selected_project_id:
+        sites = sites.filter(project_id=selected_project_id)
+        
+    contractors = User.objects.filter(assigned_sites__in=sites).distinct()
+    
+    # Create the CSV Response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="Contractor_Performance_Export.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow(['Contractor Name', 'Total Submissions', 'Reworks', 'Rework Rate (%)', 'Common Errors'])
+    
+    for c in contractors:
+        c_photos = SitePhoto.objects.filter(contractor=c, site__in=sites)
+        total_subs = c_photos.count()
+        reworks = c_photos.filter(status='REJECTED').count()
+        rework_rate = round((reworks / total_subs * 100), 1) if total_subs > 0 else 0
+        
+        recent_reworks = c_photos.filter(status='REJECTED').exclude(qa_feedback__isnull=True).exclude(qa_feedback='').order_by('-uploaded_at')[:2]
+        errors = " | ".join([p.qa_feedback for p in recent_reworks]) if recent_reworks else "None"
+        
+        writer.writerow([f"{c.first_name} {c.last_name}".strip() or c.username, total_subs, reworks, rework_rate, errors])
+        
+    return response
