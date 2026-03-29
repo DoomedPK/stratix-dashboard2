@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.models import User, Group, Permission
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
-from .models import Client, Project, UserProfile, Site, Report, SitePhoto, ActivityAlert
+from .models import Client, Project, UserProfile, Site, Report, SitePhoto, ActivityAlert, SiteIssue
 from django.utils.html import format_html
 
 # ---------------------------------------------------------
@@ -74,6 +74,13 @@ class SiteAdmin(admin.ModelAdmin):
     
     # 🚀 FIX: This transforms the squished contractor box into a searchable dropdown!
     autocomplete_fields = ['assigned_contractors']
+
+@admin.register(SiteIssue)
+class SiteIssueAdmin(admin.ModelAdmin):
+    list_display = ('site', 'severity', 'is_resolved', 'reported_by', 'created_at')
+    list_filter = ('severity', 'is_resolved')
+    search_fields = ('site__site_id', 'description')
+    autocomplete_fields = ['site', 'reported_by']
 
 @admin.register(Report)
 class ReportAdmin(admin.ModelAdmin):
