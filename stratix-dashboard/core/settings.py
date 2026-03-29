@@ -8,17 +8,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY: Use environment variables for sensitive data
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-fallback-key-for-dev-only')
-
-# DEBUG should be False in production (controlled via Render dashboard)
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,stratixjm-dashboard.onrender.com').split(',')
 
-# Pull hosts from Render environment variables and strip spaces to prevent errors
-ALLOWED_HOSTS = [host.strip() for host in os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,stratixjm-dashboard.onrender.com').split(',')]
-
-# Application definition
 INSTALLED_APPS = [
-    'jazzmin',  # Must be at the top for the dark theme
-    'daphne',   # Required for WebSockets
+    'jazzmin',
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -32,7 +27,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware', # For serving static files on Render
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -46,7 +41,7 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -54,7 +49,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'reports.context_processors.live_alerts', # Matches your context_processors.py function
+                'reports.context_processors.live_alerts',
             ],
         },
     },
@@ -63,7 +58,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 ASGI_APPLICATION = 'core.asgi.application'
 
-# Database configuration for Supabase (PostgreSQL)
 DATABASES = {
     'default': dj_database_url.config(
         default='sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3'),
@@ -72,7 +66,6 @@ DATABASES = {
     )
 }
 
-# Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',},
@@ -80,28 +73,22 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',},
 ]
 
-# Formatting for report exports
 IMPORT_EXPORT_FORMATS = [XLSX, CSV]
-
-# Internationalization
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static and Media files
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 LOGIN_REDIRECT_URL = 'dashboard_home'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
-# WebSocket / Channel Layers
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels.layers.InMemoryChannelLayer"
@@ -109,18 +96,16 @@ CHANNEL_LAYERS = {
 }
 
 # ---------------------------------------------------------
-# CSRF FIX (Moved OUTSIDE the DEBUG check so it always works)
+# CSRF FIX (Moved OUTSIDE of the DEBUG check!)
 # ---------------------------------------------------------
 csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
 if csrf_origins:
     CSRF_TRUSTED_ORIGINS = csrf_origins.split(',')
 else:
-    # Auto-generate from ALLOWED_HOSTS if the environment variable is missing
     CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS if host not in ['127.0.0.1', 'localhost']]
 
-
 # ---------------------------------------------------------
-# PRODUCTION SECURITY & CSRF FIX
+# PRODUCTION SECURITY
 # ---------------------------------------------------------
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
@@ -128,24 +113,13 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
-# ---------------------------------------------------------
-# JAZZMIN CONFIGURATION (Dark Mode Admin)
-# ---------------------------------------------------------
+
 JAZZMIN_SETTINGS = {
     "site_title": "Stratix Admin",
     "site_header": "Stratix",
     "site_brand": "STRATIX COMMAND",
     "site_logo": "images/stratix-logo.png",
     "welcome_sign": "Welcome to the Stratix Global Command Center",
-    "copyright": "Stratix Ltd",
-    "search_model": ["reports.Site", "auth.User"],
-    "topmenu_links": [
-        {"name": "Home",  "url": "admin:index", "permissions": ["auth.view_user"]},
-        {"name": "Dashboard", "url": "dashboard_home"},
-        {"model": "auth.User"},
-    ],
-    "show_sidebar": True,
-    "navigation_expanded": True,
 }
 
 JAZZMIN_UI_TWEAKS = {
