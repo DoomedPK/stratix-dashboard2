@@ -125,7 +125,6 @@ def dashboard_home(request):
         
         m_photos = SitePhoto.objects.filter(site__in=sites, uploaded_at__year=target_year, uploaded_at__month=target_month)
         m_total_subs = m_photos.count()
-        # Persist rework counts historically
         m_reworks = m_photos.filter(Q(status='REJECTED') | Q(qa_feedback__icontains='Rework')).count()
         rework_trend.append(round((m_reworks / m_total_subs * 100), 1) if m_total_subs > 0 else 0)
     
@@ -144,7 +143,6 @@ def dashboard_home(request):
     for c in contractors_to_track:
         c_photos = SitePhoto.objects.filter(contractor=c, site__in=sites)
         total_subs = c_photos.count()
-        # Even if fixed and approved, checking the feedback string keeps the history
         reworks = c_photos.filter(Q(status='REJECTED') | Q(qa_feedback__icontains='Rework')).count()
         rework_rate = round((reworks / total_subs * 100), 1) if total_subs > 0 else 0
         
@@ -275,7 +273,7 @@ def qa_hub(request):
         return redirect('dashboard_home')
         
     sites_needing_review = Site.objects.filter(photos__status='PENDING').distinct()
-    drafted_reports = Report.objects.filter(status='engineer_review') # Pass Drafts to QA!
+    drafted_reports = Report.objects.filter(status='engineer_review')
     
     return render(request, 'reports/qa_hub.html', {'sites': sites_needing_review, 'drafted_reports': drafted_reports})
 
@@ -299,7 +297,6 @@ def qa_review(request, site_id):
             photo.status = 'REJECTED'
             ActivityAlert.objects.create(message="QA rejected photo.", user=request.user, site=site, alert_type='REWORK')
             
-        # Keep Rework flag forever so Contractor performance stats stay accurate
         if 'Rework' in photo.qa_feedback:
             photo.qa_feedback = f"[Reworked] {feedback}"
         else:
@@ -318,7 +315,6 @@ def qa_review(request, site_id):
 
 @login_required
 def approve_report(request, report_id):
-    # QA checks the Tech Writer's Draft and sends it to Client
     user = request.user
     if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA'])):
         return redirect('dashboard_home')
@@ -333,8 +329,8 @@ def approve_report(request, report_id):
 @login_required
 def tech_writer_hub(request):
     user = request.user
-    # ONLY Admins and Tech Writers. (QA is locked out from drafting).
-    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Tech Writer'])):
+    # FIX: QA is now explicitly granted access to draft reports!
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Tech Writer', 'QA'])):
         return redirect('dashboard_home')
         
     reports_to_draft = Report.objects.filter(status='site_data_submitted')
@@ -343,7 +339,8 @@ def tech_writer_hub(request):
 @login_required
 def draft_report(request, report_id):
     user = request.user
-    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Tech Writer'])):
+    # FIX: QA is now explicitly granted access
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Tech Writer', 'QA'])):
         return redirect('dashboard_home')
 
     report = get_object_or_404(Report, id=report_id)
@@ -356,7 +353,7 @@ def draft_report(request, report_id):
         if final_pdf:
             report.final_document = final_pdf
             report.comments = comments
-            report.status = 'engineer_review' # NEW WORKFLOW: Sends to QA instead of Client
+            report.status = 'engineer_review' 
             report.save()
             ActivityAlert.objects.create(message="Draft Report submitted for QA final approval.", user=request.user, site=report.site, alert_type='UPLOAD')
             return redirect('tech_writer_hub')
