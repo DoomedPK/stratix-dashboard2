@@ -9,9 +9,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-fallback-key-for-dev-only')
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-# Clean Allowed Hosts by aggressively stripping any hidden spaces
-raw_hosts = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,stratixjm-dashboard.onrender.com')
+# Clean Allowed Hosts and include your custom domains
+raw_hosts = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,stratixjm-dashboard.onrender.com,dashboard.stratixjm.com')
 ALLOWED_HOSTS = [host.strip() for host in raw_hosts.split(',') if host.strip()]
+# We also append a wildcard for render just in case Render routes it internally
+ALLOWED_HOSTS.append('.onrender.com')
 
 INSTALLED_APPS = [
     'jazzmin',
@@ -51,7 +53,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'reports.context_processors.live_alerts', # FIXED TYPO
+                'reports.context_processors.live_alerts', 
             ],
         },
     },
@@ -65,7 +67,7 @@ DATABASES = {
     'default': dj_database_url.config(
         default='sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3'),
         conn_max_age=600,
-        ssl_require=True # MANDATORY FOR RENDER -> SUPABASE
+        ssl_require=True 
     )
 }
 
@@ -102,16 +104,18 @@ CHANNEL_LAYERS = {
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # ---------------------------------------------------------
-# ABSOLUTE FOOLPROOF CSRF FIX (HARDCODED)
+# WILDCARD CSRF FIX
 # ---------------------------------------------------------
+# Using wildcards ensures that any subdomain of render or stratixjm is trusted
 CSRF_TRUSTED_ORIGINS = [
-    "https://stratixjm-dashboard.onrender.com",
+    "https://*.onrender.com",
+    "https://*.stratixjm.com",
     "http://127.0.0.1",
     "http://localhost"
 ]
 
 # ---------------------------------------------------------
-# PRODUCTION SECURITY SETTINGS (Merged from your old code)
+# PRODUCTION SECURITY SETTINGS
 # ---------------------------------------------------------
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
@@ -158,6 +162,7 @@ JAZZMIN_SETTINGS = {
 }
 
 JAZZMIN_UI_TWEAKS = {
+    "navbar": "navbar-dark", # FIX: Forces top-right profile text to be bright white
     "theme": "darkly",
     "dark_mode_theme": "darkly",
 }
