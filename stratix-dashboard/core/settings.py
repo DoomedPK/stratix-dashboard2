@@ -3,14 +3,13 @@ from pathlib import Path
 from import_export.formats.base_formats import XLSX, CSV
 import dj_database_url
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY: Use environment variables for sensitive data
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-fallback-key-for-dev-only')
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-# Clean Allowed Hosts by stripping spaces
+# Clean Allowed Hosts by aggressively stripping any hidden spaces
 raw_hosts = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,stratixjm-dashboard.onrender.com')
 ALLOWED_HOSTS = [host.strip() for host in raw_hosts.split(',') if host.strip()]
 
@@ -106,10 +105,11 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # ---------------------------------------------------------
 # ABSOLUTE FOOLPROOF CSRF FIX (HARDCODED)
 # ---------------------------------------------------------
+# This completely ignores your environment variables and FORCES Django to accept the URL.
 CSRF_TRUSTED_ORIGINS = [
     "https://stratixjm-dashboard.onrender.com",
-    "https://127.0.0.1",
-    "https://localhost"
+    "http://127.0.0.1",
+    "http://localhost"
 ]
 
 # ---------------------------------------------------------
