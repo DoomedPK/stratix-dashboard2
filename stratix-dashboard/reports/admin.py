@@ -1,9 +1,8 @@
 from django.contrib import admin
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group, Permission
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from import_export.admin import ImportExportModelAdmin
-from .models import Client, Project, UserProfile, Site, Report, Photo, SitePhoto, ActivityAlert
-from .resources import SiteResource
+from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
+from .models import Client, Project, UserProfile, Site, Report, SitePhoto, ActivityAlert
 from django.utils.html import format_html
 
 # ---------------------------------------------------------
@@ -14,7 +13,29 @@ admin.site.site_title = "Stratix Admin Portal"
 admin.site.index_title = "Global Database Administration"
 
 # ---------------------------------------------------------
-# INLINES: Show related data on the same page
+# UI FIX: Searchable Dropdowns for Users & Groups
+# This removes the squished boxes and replaces them with a Search Icon / Select UI.
+# ---------------------------------------------------------
+# Re-register Group so it can be searched
+admin.site.unregister(Group)
+@admin.register(Group)
+class CustomGroupAdmin(BaseGroupAdmin):
+    search_fields = ('name',)
+
+# Register Permissions so they can be searched
+@admin.register(Permission)
+class PermissionAdmin(admin.ModelAdmin):
+    search_fields = ('name', 'codename')
+    list_display = ('name', 'content_type', 'codename')
+
+# Re-register User to use the sleek Search Bars
+admin.site.unregister(User)
+@admin.register(User)
+class CustomUserAdmin(BaseUserAdmin):
+    autocomplete_fields = ['groups', 'user_permissions']
+
+# ---------------------------------------------------------
+# INLINES
 # ---------------------------------------------------------
 class SitePhotoInline(admin.TabularInline):
     model = SitePhoto
@@ -29,7 +50,7 @@ class SitePhotoInline(admin.TabularInline):
     image_preview.short_description = 'Preview'
 
 # ---------------------------------------------------------
-# MODEL ADMINS: Customizing the Data Grids
+# MODEL ADMINS
 # ---------------------------------------------------------
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
@@ -50,8 +71,9 @@ class SiteAdmin(admin.ModelAdmin):
     list_filter = ('priority', 'project__client', 'project')
     search_fields = ('site_id', 'site_name', 'location')
     inlines = [SitePhotoInline] 
-    # REMOVED filter_horizontal to prevent Jazzmin dark-theme squishing bugs. 
-    # It now renders as a clean, highly visible standard selection box.
+    
+    # 🚀 FIX: This transforms the squished contractor box into a searchable dropdown!
+    autocomplete_fields = ['assigned_contractors']
 
 @admin.register(Report)
 class ReportAdmin(admin.ModelAdmin):
@@ -65,6 +87,9 @@ class UserProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'role', 'client')
     list_filter = ('role', 'client')
     search_fields = ('user__username', 'user__first_name', 'user__last_name')
+    
+    # Make the User Profile assignment searchable too
+    autocomplete_fields = ['user']
 
 @admin.register(SitePhoto)
 class SitePhotoAdmin(admin.ModelAdmin):
