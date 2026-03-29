@@ -12,26 +12,24 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 # At the very top with other imports
 from import_export.formats.base_formats import XLSX, CSV
 from pathlib import Path
+import os
+from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
-
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-=f4ju6vgb*7hd(*i4vq%y!fkuo9-&&1=9knrrtq7pzb*47#d%w'
+# Use an environment variable in production; fallback to a dummy key for dev
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-fallback-key-for-dev-only')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['stratixjm-dashboard.onrender.com', 'dashboard.stratixjm.com', 'localhost', '127.0.0.1']
-
-
-# Application definition
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
 INSTALLED_APPS = [
+    'jazzmin',
     'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -39,17 +37,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
-    # THE MISSING LINK:
-    'import_export', 
-    
-    # Your App:
     'reports',
+    'channels',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', # For serving static files on Render
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -63,7 +57,7 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -71,77 +65,102 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                # NEW: Add our universal alert fetcher here!
-                'reports.context_processors.live_alerts',
+                'reports.context_processors.recent_alerts',
             ],
         },
     },
 ]
 
-
-# ADD THESE LINES INSTEAD:
+WSGI_APPLICATION = 'core.wsgi.application'
 ASGI_APPLICATION = 'core.asgi.application'
 
+# Database configuration for Supabase (PostgreSQL)
+# Use a connection string in Render environment variables
+import dj_database_url
+DATABASES = {
+    'default': dj_database_url.config(
+        default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
+        conn_max_age=600
+    )
+}
+
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',},
+]
+
+LANGUAGE_CODE = 'en-us'
+TIME_ZONE = 'UTC'
+USE_I18N = True
+USE_TZ = True
+
+STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# WebSocket / Channel Layers
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels.layers.InMemoryChannelLayer"
     }
 }
 
+# ---------------------------------------------------------
+# PRODUCTION SECURITY SETTINGS
+# ---------------------------------------------------------
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    X_FRAME_OPTIONS = 'DENY'
+    # HSTS Settings
+    SECURE_HSTS_SECONDS = 31536000 # 1 Year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
-# Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
-import dj_database_url
-import os
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+# ---------------------------------------------------------
+# JAZZMIN CONFIGURATION
+# ---------------------------------------------------------
+JAZZMIN_SETTINGS = {
+    "site_title": "Stratix Admin",
+    "site_header": "Stratix",
+    "site_brand": "STRATIX COMMAND",
+    "site_logo": "images/stratix-logo.png",
+    "welcome_sign": "Welcome to the Stratix Global Command Center",
+    "copyright": "Stratix Ltd",
+    "search_model": ["reports.Site", "auth.User"],
+    "topmenu_links": [
+        {"name": "Home",  "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "Dashboard", "url": "dashboard_home"},
+        {"model": "auth.User"},
+    ],
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "reports.Client": "fas fa-building",
+        "reports.Project": "fas fa-project-diagram",
+        "reports.Site": "fas fa-tower-cell",
+        "reports.Report": "fas fa-file-invoice",
+        "reports.SitePhoto": "fas fa-camera",
+        "reports.ActivityAlert": "fas fa-bell",
+        "reports.UserProfile": "fas fa-id-card",
+    },
+    "order_with_respect_to": ["reports", "auth"],
 }
 
-# Password validation
-# https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
-
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-]
-
-# No quotes around XLSX and CSV here!
-IMPORT_EXPORT_FORMATS = [XLSX, CSV]
-
-# Internationalization
-# https://docs.djangoproject.com/en/6.0/topics/i18n/
-
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
-USE_I18N = True
-
-USE_TZ = True
-
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.0/howto/static-files/
-
-STATIC_URL = 'static/'
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-LOGIN_REDIRECT_URL = 'dashboard_home'
-LOGOUT_REDIRECT_URL = '/accounts/login/'
-
+JAZZMIN_UI_TWEAKS = {
+    "theme": "darkly",
+    "dark_mode_theme": "darkly",
+}
