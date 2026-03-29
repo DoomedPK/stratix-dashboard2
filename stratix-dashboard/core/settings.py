@@ -127,6 +127,8 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = 31536000 # 1 Year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+    # Add this line inside the 'if not DEBUG:' block
+    CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS if host != '127.0.0.1']
 
 # ---------------------------------------------------------
 # JAZZMIN CONFIGURATION
