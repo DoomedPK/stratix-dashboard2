@@ -26,7 +26,6 @@
 
 {% block content %}
 <div class="container py-4">
-    
     <div class="row mb-4 align-items-md-center">
         <div class="col-xl-7 col-lg-6 mb-3 mb-lg-0">
             <h2 class="fw-bold text-white fs-3"><i class="fas fa-satellite-dish me-2 text-primary"></i> Real-Time Cell Tower Tracking</h2>
@@ -43,7 +42,6 @@
                     {% endfor %}
                 </select>
             </form>
-
             <div class="badge bg-dark border border-success px-3 py-2 fs-6">
                 <span class="pulse-dot"></span> Live System Active
             </div>
@@ -51,6 +49,7 @@
     </div>
 
     <div class="row g-4 mb-4">
+        {% if user.profile.role == 'Contractor' %}
         <div class="col-md-3 col-sm-6">
             <div class="card metric-card border-primary-left p-3 h-100 shadow-sm">
                 <p class="text-muted mb-1 small text-uppercase fw-bold">Total Sites Received</p>
@@ -58,27 +57,47 @@
             </div>
         </div>
         <div class="col-md-3 col-sm-6">
+            <div class="card metric-card border-purple-left p-3 h-100 shadow-sm">
+                <p class="text-muted mb-1 small text-uppercase fw-bold">Visits Completed</p>
+                <h3 class="fw-bold mb-0 text-white">{{ visits_completed }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
             <div class="card metric-card border-warning-left p-3 h-100 shadow-sm">
-                <p class="text-muted mb-1 small text-uppercase fw-bold">Reports Needs Completion</p>
+                <p class="text-muted mb-1 small text-uppercase fw-bold">Visits Remaining</p>
+                <h3 class="fw-bold mb-0 text-white">{{ visits_remaining }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card metric-card border-danger-left p-3 h-100 shadow-sm">
+                <p class="text-muted mb-1 small text-uppercase fw-bold">Pending Photos Validation</p>
+                <h3 class="fw-bold mb-0 text-white">{{ pending_photos_validation }}</h3>
+            </div>
+        </div>
+
+        {% else %}
+        <div class="col-md-3 col-sm-6">
+            <div class="card metric-card border-primary-left p-3 h-100 shadow-sm">
+                <p class="text-muted mb-1 small text-uppercase fw-bold">{% if user.profile.role == 'Client' %}Total Sites{% else %}Total Sites Received{% endif %}</p>
+                <h3 class="fw-bold mb-0 text-white">{{ total_sites_received }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card metric-card border-warning-left p-3 h-100 shadow-sm">
+                <p class="text-muted mb-1 small text-uppercase fw-bold">{% if user.profile.role == 'Client' %}Total Reports Remaining{% else %}Reports Needs Completion{% endif %}</p>
                 <h3 class="fw-bold mb-0 text-white">{{ total_reports_needs_completion }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card metric-card border-info-left p-3 h-100 shadow-sm">
+                <p class="text-muted mb-1 small text-uppercase fw-bold">Visits In Progress</p>
+                <h3 class="fw-bold mb-0 text-white">{{ visits_in_progress_count }}</h3>
             </div>
         </div>
         <div class="col-md-3 col-sm-6">
             <div class="card metric-card border-success-left p-3 h-100 shadow-sm">
                 <p class="text-muted mb-1 small text-uppercase fw-bold">Total Reports Completed</p>
                 <h3 class="fw-bold mb-0 text-white">{{ total_reports_completed }}</h3>
-            </div>
-        </div>
-        <div class="col-md-3 col-sm-6">
-            <div class="card metric-card border-info-left p-3 h-100 shadow-sm">
-                <p class="text-muted mb-1 small text-uppercase fw-bold">Completion Rate</p>
-                <h3 class="fw-bold mb-0 text-info">
-                    {% if total_sites_received > 0 %}
-                        {% widthratio total_reports_completed total_sites_received 100 %}%
-                    {% else %}
-                        0%
-                    {% endif %}
-                </h3>
             </div>
         </div>
         <div class="col-md-3 col-sm-6">
@@ -105,6 +124,7 @@
                 <h3 class="fw-bold mb-0 text-white">{{ pending_report_validation }}</h3>
             </div>
         </div>
+        {% endif %}
     </div>
 
     <div class="row g-4">
@@ -133,14 +153,38 @@
                 <h5 class="fw-bold mb-4 border-bottom border-secondary pb-3"><i class="fas fa-tasks me-2 text-warning"></i> Report Status Board</h5>
                 <div class="row g-3">
                     {% for item in status_board %}
-                    <div class="col-md-4">
-                        <div class="card bg-dark bg-opacity-50 border-{{ item.color }} h-100 p-3 text-center transition">
-                            <i class="fas {{ item.icon }} fs-2 text-{{ item.color }} mb-2 mt-2"></i>
-                            <h3 class="fw-bold text-white mb-0">{{ item.count }}</h3>
-                            <p class="text-{{ item.color }} fw-semibold small mb-2">{{ item.stage }}</p>
-                            <p class="text-muted small mb-0" style="font-size: 0.75rem;">{{ item.example }}</p>
-                        </div>
-                    </div>
+                        {% if user.profile.role == 'Contractor' %}
+                            {% if item.stage == 'Pending QA Validation' %}
+                                <div class="col-md-12">
+                                    <div class="card bg-dark bg-opacity-50 border-{{ item.color }} h-100 p-3 text-center transition">
+                                        <i class="fas {{ item.icon }} fs-2 text-{{ item.color }} mb-2 mt-2"></i>
+                                        <h3 class="fw-bold text-white mb-0">{{ item.count }}</h3>
+                                        <p class="text-{{ item.color }} fw-semibold small mb-2">{{ item.stage }}</p>
+                                        <p class="text-muted small mb-0" style="font-size: 0.75rem;">{{ item.example }}</p>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% elif user.profile.role == 'Client' %}
+                            {% if item.stage != 'Completed & Delivered' %}
+                                <div class="col-md-6">
+                                    <div class="card bg-dark bg-opacity-50 border-{{ item.color }} h-100 p-3 text-center transition">
+                                        <i class="fas {{ item.icon }} fs-2 text-{{ item.color }} mb-2 mt-2"></i>
+                                        <h3 class="fw-bold text-white mb-0">{{ item.count }}</h3>
+                                        <p class="text-{{ item.color }} fw-semibold small mb-2">{{ item.stage }}</p>
+                                        <p class="text-muted small mb-0" style="font-size: 0.75rem;">{{ item.example }}</p>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="col-md-4">
+                                <div class="card bg-dark bg-opacity-50 border-{{ item.color }} h-100 p-3 text-center transition">
+                                    <i class="fas {{ item.icon }} fs-2 text-{{ item.color }} mb-2 mt-2"></i>
+                                    <h3 class="fw-bold text-white mb-0">{{ item.count }}</h3>
+                                    <p class="text-{{ item.color }} fw-semibold small mb-2">{{ item.stage }}</p>
+                                    <p class="text-muted small mb-0" style="font-size: 0.75rem;">{{ item.example }}</p>
+                                </div>
+                            </div>
+                        {% endif %}
                     {% endfor %}
                 </div>
             </div>
@@ -229,33 +273,26 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // PIE CHART RENDERING
         Chart.register(ChartDataLabels);
         const ctx = document.getElementById('progressionChart').getContext('2d');
-        
         const chartLabels = [{% for status in status_data %}'{{ status.label }}',{% endfor %}];
         const chartCounts = [{% for status in status_data %}{{ status.count }},{% endfor %}];
         const chartColors = [{% for status in status_data %}'{{ status.color }}',{% endfor %}];
 
         new Chart(ctx, {
             type: 'doughnut',
-            data: {
-                labels: chartLabels,
-                datasets: [{ data: chartCounts, backgroundColor: chartColors, borderColor: '#1e2937', borderWidth: 3, hoverOffset: 6 }]
-            },
+            data: { labels: chartLabels, datasets: [{ data: chartCounts, backgroundColor: chartColors, borderColor: '#1e2937', borderWidth: 3, hoverOffset: 6 }] },
             options: {
                 responsive: true, maintainAspectRatio: false, cutout: '65%',
                 plugins: {
                     legend: { display: true, position: 'right', labels: { color: '#cbd5e1', usePointStyle: true, pointStyle: 'circle', padding: 15, font: { family: "'Segoe UI', Roboto, sans-serif", size: 11 } } },
                     tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.95)', titleColor: '#fff', bodyColor: '#cbd5e1', borderColor: '#334155', borderWidth: 1, padding: 12, displayColors: true, usePointStyle: true },
                     datalabels: {
-                        color: '#ffffff',
-                        font: { weight: 'bold', size: 13, family: "'Segoe UI', Roboto, sans-serif" },
+                        color: '#ffffff', font: { weight: 'bold', size: 13, family: "'Segoe UI', Roboto, sans-serif" },
                         formatter: (value, ctx) => {
                             if (value === 0) return '';
                             let sum = 0;
-                            let dataArr = ctx.chart.data.datasets[0].data;
-                            dataArr.map(data => { sum += data; });
+                            ctx.chart.data.datasets[0].data.map(data => { sum += data; });
                             return (value * 100 / sum).toFixed(0) + "%";
                         }
                     }
@@ -263,43 +300,23 @@
             }
         });
 
-        // MINI MAP SCRIPT 
         if (document.getElementById('miniMap')) {
             var miniMap = L.map('miniMap', { scrollWheelZoom: false }).setView([20, 0], 2);
-
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
-            }).addTo(miniMap);
-
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; OpenStreetMap contributors &copy; CARTO' }).addTo(miniMap);
             var sites = {{ sites_json|safe }};
             var bounds = [];
-
             sites.forEach(function(site) {
                 var pinColor = "#28a745"; 
                 if (site.priority === "Medium") pinColor = "#ffc107"; 
                 else if (site.priority === "High") pinColor = "#dc3545"; 
-
-                L.circleMarker([site.lat, site.lng], {
-                    radius: 6,
-                    fillColor: pinColor,
-                    color: "#000",
-                    weight: 1,
-                    opacity: 1,
-                    fillOpacity: 0.9
-                }).addTo(miniMap).bindPopup(`<b>${site.name}</b><br>Priority: ${site.priority}`);
-                
+                L.circleMarker([site.lat, site.lng], { radius: 6, fillColor: pinColor, color: "#000", weight: 1, opacity: 1, fillOpacity: 0.9 }).addTo(miniMap).bindPopup(`<b>${site.name}</b><br>Priority: ${site.priority}`);
                 bounds.push([site.lat, site.lng]); 
             });
-
-            if (bounds.length > 0) {
-                miniMap.fitBounds(bounds, { padding: [20, 20] });
-            }
+            if (bounds.length > 0) { miniMap.fitBounds(bounds, { padding: [20, 20] }); }
         }
 
-        // NEW: HISTORICAL TREND LINE CHART
         if (document.getElementById('trendChart')) {
             const trendCtx = document.getElementById('trendChart').getContext('2d');
-            
             const labels = JSON.parse('{{ trend_labels|safe }}');
             const tatData = JSON.parse('{{ tat_trend|safe }}');
             const reworkData = JSON.parse('{{ rework_trend|safe }}');
@@ -309,63 +326,28 @@
                 data: {
                     labels: labels,
                     datasets: [
-                        {
-                            label: 'Avg Turnaround Time (Days)',
-                            data: tatData,
-                            borderColor: '#38bdf8', // Blue
-                            backgroundColor: 'rgba(56, 189, 248, 0.1)',
-                            borderWidth: 3,
-                            tension: 0.3, // Smooth curves
-                            fill: true,
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: 'Rework Rate (%)',
-                            data: reworkData,
-                            borderColor: '#ef4444', // Red
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            borderWidth: 3,
-                            tension: 0.3,
-                            fill: true,
-                            yAxisID: 'y1'
-                        }
+                        { label: 'Avg Turnaround Time (Days)', data: tatData, borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', borderWidth: 3, tension: 0.3, fill: true, yAxisID: 'y' },
+                        { label: 'Rework Rate (%)', data: reworkData, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderWidth: 3, tension: 0.3, fill: true, yAxisID: 'y1' }
                     ]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { labels: { color: '#cbd5e1' } },
-                        datalabels: { display: false } // Hide numbers on lines
-                    },
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#cbd5e1' } }, datalabels: { display: false } },
                     scales: {
                         x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
-                        y: { 
-                            type: 'linear', display: true, position: 'left',
-                            title: { display: true, text: 'Days', color: '#38bdf8' },
-                            ticks: { color: '#94a3b8' }, grid: { color: '#334155' },
-                            min: 0 
-                        },
-                        y1: { 
-                            type: 'linear', display: true, position: 'right',
-                            title: { display: true, text: 'Percentage (%)', color: '#ef4444' },
-                            ticks: { color: '#94a3b8' }, grid: { drawOnChartArea: false },
-                            min: 0, max: 100
-                        }
+                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Days', color: '#38bdf8' }, ticks: { color: '#94a3b8' }, grid: { color: '#334155' }, min: 0 },
+                        y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Percentage (%)', color: '#ef4444' }, ticks: { color: '#94a3b8' }, grid: { drawOnChartArea: false }, min: 0, max: 100 }
                     }
                 }
             });
         }
     });
 
-    // Contractor Search Dropdown Logic
     function showContractorStats() {
         var selectedId = document.getElementById("contractorSelect").value;
         var container = document.getElementById("contractorStatsContainer");
-        
         var allData = document.querySelectorAll(".contractor-data");
         allData.forEach(function(el) { el.style.display = "none"; });
-        
         if (selectedId) {
             container.style.display = "block";
             document.getElementById("contractor-" + selectedId).style.display = "flex";
