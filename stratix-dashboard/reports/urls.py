@@ -4,6 +4,7 @@ from . import views
 
 urlpatterns = [
     path('', views.dashboard_home, name='dashboard_home'),
+    path('import-sites/', views.import_sites, name='import_sites'), # NEW: Bulk Import
     path('upload/', views.upload_photos, name='upload_photos'),
     path('sites/', views.site_visit_list, name='site_visit_list'),
     path('start-visit/<int:report_id>/', views.start_visit, name='start_visit'),
@@ -11,7 +12,7 @@ urlpatterns = [
     path('rework/upload/<int:photo_id>/', views.rework_upload, name='rework_upload'),
     path('qa/', views.qa_hub, name='qa_hub'),
     path('qa/review/<int:site_id>/', views.qa_review, name='qa_review'),
-    path('qa/approve-report/<int:report_id>/', views.approve_report, name='approve_report'), # NEW WORKFLOW
+    path('qa/approve-report/<int:report_id>/', views.approve_report, name='approve_report'),
     path('tech-writer/', views.tech_writer_hub, name='tech_writer_hub'),
     path('tech-writer/draft/<int:report_id>/', views.draft_report, name='draft_report'),
     path('logout/', views.custom_logout, name='logout'),
