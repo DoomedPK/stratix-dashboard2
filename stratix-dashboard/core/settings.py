@@ -51,7 +51,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'reports.context_processors.live_alerts',
+                'reports.context_processors.live_alerts', # FIXED TYPO
             ],
         },
     },
@@ -60,11 +60,12 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 ASGI_APPLICATION = 'core.asgi.application'
 
+# Database configuration for Supabase (PostgreSQL)
 DATABASES = {
     'default': dj_database_url.config(
         default='sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3'),
         conn_max_age=600,
-        ssl_require=True
+        ssl_require=True # MANDATORY FOR RENDER -> SUPABASE
     )
 }
 
@@ -83,7 +84,6 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
@@ -104,7 +104,6 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # ---------------------------------------------------------
 # ABSOLUTE FOOLPROOF CSRF FIX (HARDCODED)
 # ---------------------------------------------------------
-# This completely ignores your environment variables and FORCES Django to accept the URL.
 CSRF_TRUSTED_ORIGINS = [
     "https://stratixjm-dashboard.onrender.com",
     "http://127.0.0.1",
@@ -112,21 +111,50 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 # ---------------------------------------------------------
-# PRODUCTION SECURITY
+# PRODUCTION SECURITY SETTINGS (Merged from your old code)
 # ---------------------------------------------------------
 if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    # HSTS Settings
+    SECURE_HSTS_SECONDS = 31536000 # 1 Year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
+# ---------------------------------------------------------
+# JAZZMIN CONFIGURATION (Full UI restored!)
+# ---------------------------------------------------------
 JAZZMIN_SETTINGS = {
     "site_title": "Stratix Admin",
     "site_header": "Stratix",
     "site_brand": "STRATIX COMMAND",
     "site_logo": "images/stratix-logo.png",
     "welcome_sign": "Welcome to the Stratix Global Command Center",
+    "copyright": "Stratix Ltd",
+    "search_model": ["reports.Site", "auth.User"],
+    "topmenu_links": [
+        {"name": "Home",  "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "Dashboard", "url": "dashboard_home"},
+        {"model": "auth.User"},
+    ],
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "reports.Client": "fas fa-building",
+        "reports.Project": "fas fa-project-diagram",
+        "reports.Site": "fas fa-tower-cell",
+        "reports.Report": "fas fa-file-invoice",
+        "reports.SitePhoto": "fas fa-camera",
+        "reports.ActivityAlert": "fas fa-bell",
+        "reports.UserProfile": "fas fa-id-card",
+    },
+    "order_with_respect_to": ["reports", "auth"],
 }
 
 JAZZMIN_UI_TWEAKS = {
