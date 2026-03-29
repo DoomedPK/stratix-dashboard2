@@ -12,8 +12,8 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-fallback-key-f
 # DEBUG should be False in production (controlled via Render dashboard)
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-# Pull hosts from Render environment variables
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,stratixjm-dashboard.onrender.com').split(',')
+# Pull hosts from Render environment variables and strip spaces to prevent errors
+ALLOWED_HOSTS = [host.strip() for host in os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,stratixjm-dashboard.onrender.com').split(',')]
 
 # Application definition
 INSTALLED_APPS = [
@@ -109,18 +109,22 @@ CHANNEL_LAYERS = {
 }
 
 # ---------------------------------------------------------
-# PRODUCTION SECURITY & CSRF FIX
+# CSRF FIX (Works regardless of DEBUG mode)
+# ---------------------------------------------------------
+# This will now correctly whitelist your Render site instantly
+csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS')
+if csrf_origins:
+    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins.split(',')]
+else:
+    CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS if host not in ['127.0.0.1', 'localhost']]
+
+# ---------------------------------------------------------
+# PRODUCTION SECURITY SETTINGS
 # ---------------------------------------------------------
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    # Read origins from environment variable or auto-generate from ALLOWED_HOSTS
-    csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS')
-    if csrf_origins:
-        CSRF_TRUSTED_ORIGINS = csrf_origins.split(',')
-    else:
-        CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS if host not in ['127.0.0.1', 'localhost']]
 
 # ---------------------------------------------------------
 # JAZZMIN CONFIGURATION (Dark Mode Admin)
