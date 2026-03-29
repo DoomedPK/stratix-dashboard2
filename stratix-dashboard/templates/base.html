@@ -135,7 +135,7 @@
                 <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'qa_hub' %}"><i class="fas fa-clipboard-check me-3 text-success"></i> QA Validation Hub</a></li>
                 {% endif %}
 
-                {% if user.is_superuser or user.profile.role == 'Admin' or user.profile.role == 'Tech Writer' %}
+                {% if user.is_superuser or user.profile.role == 'Admin' or user.profile.role == 'Tech Writer' or user.profile.role == 'QA' %}
                 <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'tech_writer_hub' %}"><i class="fas fa-file-signature me-3 text-primary"></i> Tech Writer Hub</a></li>
                 {% endif %}
 
