@@ -112,12 +112,23 @@ CHANNEL_LAYERS = {
 # ---------------------------------------------------------
 # PRODUCTION SECURITY & CSRF FIX
 # ---------------------------------------------------------
+# ---------------------------------------------------------
+# PRODUCTION SECURITY & CSRF FIX
+# ---------------------------------------------------------
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    # THIS FIXES THE 403 ERROR by whitelisting your Render URL
-    CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS if host not in ['127.0.0.1', 'localhost']]
+    
+    # Read the origins from your environment variable
+    # If the variable is missing, it defaults to an empty list
+    csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+    if csrf_origins:
+        CSRF_TRUSTED_ORIGINS = csrf_origins.split(',')
+    
+    # Extra security headers
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
 
 # ---------------------------------------------------------
 # JAZZMIN CONFIGURATION (Dark Mode Admin)
