@@ -1,15 +1,14 @@
 import json
 import csv
-from django.http import HttpResponse
+import datetime
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.db.models import Q
 from django.contrib.auth.models import User
 from .models import Site, SitePhoto, Report, ActivityAlert, Project
-from django.http import JsonResponse
 from django.utils.timezone import now
-import datetime
 
 @login_required
 def dashboard_home(request):
@@ -40,12 +39,14 @@ def dashboard_home(request):
         reports = base_reports
         current_project = None
 
-    # 3. Metrics
+    # 3. Dynamic Metrics
     total_sites_received = sites.count()
     total_reports_completed = reports.filter(status='submitted').count()
     total_reports_needs_completion = total_sites_received - total_reports_completed
     
     visits_completed = reports.filter(status__in=['site_data_submitted', 'qa_validation', 'engineer_review', 'submitted']).count()
+    visits_remaining = total_sites_received - visits_completed
+    visits_in_progress_count = reports.filter(status='visit_in_progress').count()
     reports_in_progress = reports.filter(status__in=['site_data_submitted', 'engineer_review']).count()
     
     if user.is_superuser or (hasattr(user, 'profile') and user.profile.role == 'Client'):
@@ -71,7 +72,7 @@ def dashboard_home(request):
 
     status_board = [
         {'stage': 'Pending QA Validation', 'count': pending_photos_validation, 'icon': 'fa-camera', 'color': 'warning', 'example': 'Photos uploaded by contractors, awaiting QA review.'},
-        {'stage': 'Tech Drafting In Progress', 'count': reports_in_progress, 'icon': 'fa-pen-nib', 'color': 'info', 'example': 'Approved sites currently being drafted into PDF reports.'},
+        {'stage': 'Tech Drafting In Progress', 'count': reports_in_progress, 'icon': 'fa-pen-nib', 'color': 'info', 'example': 'Approved sites currently being drafted into reports.'},
         {'stage': 'Completed & Delivered', 'count': total_reports_completed, 'icon': 'fa-check-double', 'color': 'success', 'example': 'Final technical reports successfully delivered.'},
     ]
 
@@ -86,7 +87,7 @@ def dashboard_home(request):
                 'priority': site.priority  
             })
 
-    # 6. Turnaround Time (TAT) Calculation
+    # 6. Turnaround Time
     total_tat_days = 0
     tat_count = 0
     for r in reports.filter(status='submitted'):
@@ -95,50 +96,40 @@ def dashboard_home(request):
             delta = final_alert.timestamp - r.submitted_at
             total_tat_days += delta.days
             tat_count += 1
-            
     avg_tat = round(total_tat_days / tat_count, 1) if tat_count > 0 else 0
 
     # ---------------------------------------------------------
-    # NEW: 6-MONTH HISTORICAL TREND DATA
+    # 6-MONTH HISTORICAL TREND DATA
     # ---------------------------------------------------------
-    import datetime
-    
     trend_labels = []
     tat_trend = []
     rework_trend = []
-    
     current_date = now().date()
     
-    # Loop backwards through the last 6 months
     for i in range(5, -1, -1):
         target_month = (current_date.month - i - 1) % 12 + 1
         target_year = current_date.year + ((current_date.month - i - 1) // 12)
-        
-        # Build the label (e.g., "Oct 2025")
         month_label = datetime.date(target_year, target_month, 1).strftime('%b %Y')
         trend_labels.append(month_label)
         
-        # 1. Monthly TAT Calculation
-        m_reports = reports.filter(status='submitted') # We will filter dates via alerts to be safe
+        m_reports = reports.filter(status='submitted')
         m_total_tat = 0
         m_tat_count = 0
-        
         for r in m_reports:
             final_alert = ActivityAlert.objects.filter(site=r.site, alert_type='UPLOAD', message__icontains='Final', timestamp__year=target_year, timestamp__month=target_month).order_by('-timestamp').first()
             if final_alert and hasattr(r, 'submitted_at') and r.submitted_at:
                 delta = final_alert.timestamp - r.submitted_at
                 m_total_tat += delta.days
                 m_tat_count += 1
-                
         tat_trend.append(round(m_total_tat / m_tat_count, 1) if m_tat_count > 0 else 0)
         
-        # 2. Monthly Rework Calculation
         m_photos = SitePhoto.objects.filter(site__in=sites, uploaded_at__year=target_year, uploaded_at__month=target_month)
         m_total_subs = m_photos.count()
-        m_reworks = m_photos.filter(status='REJECTED').count()
+        # Persist rework counts historically
+        m_reworks = m_photos.filter(Q(status='REJECTED') | Q(qa_feedback__icontains='Rework')).count()
         rework_trend.append(round((m_reworks / m_total_subs * 100), 1) if m_total_subs > 0 else 0)
     
-    # 7. Contractor Performance Tracking (Least Privilege)
+    # 7. Contractor Performance Tracking
     contractor_stats = []
     is_client_or_admin = user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Client'])
     is_contractor = hasattr(user, 'profile') and user.profile.role == 'Contractor'
@@ -153,10 +144,11 @@ def dashboard_home(request):
     for c in contractors_to_track:
         c_photos = SitePhoto.objects.filter(contractor=c, site__in=sites)
         total_subs = c_photos.count()
-        reworks = c_photos.filter(status='REJECTED').count()
+        # Even if fixed and approved, checking the feedback string keeps the history
+        reworks = c_photos.filter(Q(status='REJECTED') | Q(qa_feedback__icontains='Rework')).count()
         rework_rate = round((reworks / total_subs * 100), 1) if total_subs > 0 else 0
         
-        recent_reworks = c_photos.filter(status='REJECTED').exclude(qa_feedback__isnull=True).exclude(qa_feedback='').order_by('-uploaded_at')[:2]
+        recent_reworks = c_photos.filter(Q(status='REJECTED') | Q(qa_feedback__icontains='Rework')).exclude(qa_feedback__isnull=True).exclude(qa_feedback='').order_by('-uploaded_at')[:2]
         common_errors = [p.qa_feedback for p in recent_reworks] if recent_reworks else ["No frequent errors detected."]
 
         contractor_stats.append({
@@ -175,6 +167,8 @@ def dashboard_home(request):
         'total_reports_needs_completion': total_reports_needs_completion,
         'total_reports_completed': total_reports_completed,
         'visits_completed': visits_completed,
+        'visits_remaining': visits_remaining,
+        'visits_in_progress_count': visits_in_progress_count,
         'reports_in_progress': reports_in_progress,
         'pending_photos_validation': pending_photos_validation,
         'pending_report_validation': pending_report_validation,
@@ -207,12 +201,8 @@ def upload_photos(request):
                     site=site, contractor=user, image=image, status='PENDING',
                     qa_feedback=f"Category: {category} | Notes: {notes}"
                 )
-            
-            # NEW: Check if the request is an AJAX upload
             if request.headers.get('x-requested-with') == 'XMLHttpRequest':
                 return JsonResponse({'status': 'success'})
-            
-            # Fallback for standard uploads
             return redirect('site_visit_list')
             
         except Site.DoesNotExist:
@@ -224,7 +214,6 @@ def upload_photos(request):
         sites = Site.objects.filter(reports__status='visit_in_progress').distinct()
     else:
         sites = Site.objects.filter(assigned_contractors=user, reports__status='visit_in_progress').distinct()
-        
     return render(request, 'reports/upload_photo.html', {'sites': sites})
 
 @login_required
@@ -232,15 +221,12 @@ def start_visit(request, report_id):
     report = get_object_or_404(Report, id=report_id)
     report.status = 'visit_in_progress'
     report.save()
-    ActivityAlert.objects.create(
-        message=f"Contractor has arrived on site.", user=request.user, site=report.site, alert_type='CHECK_IN'
-    )
+    ActivityAlert.objects.create(message=f"Contractor has arrived on site.", user=request.user, site=report.site, alert_type='CHECK_IN')
     return redirect('site_visit_list')
 
 @login_required
 def site_visit_list(request):
     user = request.user
-    
     if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer']):
         reports_list = Report.objects.all()
     elif hasattr(user, 'profile') and user.profile.role == 'Client':
@@ -258,6 +244,8 @@ def rework_log(request):
     user = request.user
     if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA']):
         reworks = SitePhoto.objects.filter(status='REJECTED').order_by('-uploaded_at')
+    elif hasattr(user, 'profile') and user.profile.role == 'Client':
+        reworks = SitePhoto.objects.filter(site__project__client=user.profile.client, status='REJECTED').order_by('-uploaded_at')
     else:
         reworks = SitePhoto.objects.filter(contractor=user, status='REJECTED').order_by('-uploaded_at')
     return render(request, 'reports/rework_log.html', {'reworks': reworks})
@@ -276,9 +264,7 @@ def rework_upload(request, photo_id):
             photo.status = 'PENDING'
             photo.qa_feedback = f"Rework Submitted | Notes: {notes}"
             photo.save()
-            ActivityAlert.objects.create(
-                message=f"Contractor uploaded a fix.", user=request.user, site=photo.site, alert_type='UPLOAD'
-            )
+            ActivityAlert.objects.create(message=f"Contractor uploaded a fix.", user=request.user, site=photo.site, alert_type='UPLOAD')
             return redirect('rework_log')
     return render(request, 'reports/rework_upload.html', {'photo': photo})
 
@@ -287,8 +273,11 @@ def qa_hub(request):
     user = request.user
     if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA'])):
         return redirect('dashboard_home')
+        
     sites_needing_review = Site.objects.filter(photos__status='PENDING').distinct()
-    return render(request, 'reports/qa_hub.html', {'sites': sites_needing_review})
+    drafted_reports = Report.objects.filter(status='engineer_review') # Pass Drafts to QA!
+    
+    return render(request, 'reports/qa_hub.html', {'sites': sites_needing_review, 'drafted_reports': drafted_reports})
 
 @login_required
 def qa_review(request, site_id):
@@ -302,13 +291,19 @@ def qa_review(request, site_id):
     if request.method == 'POST':
         photo = get_object_or_404(SitePhoto, id=request.POST.get('photo_id'))
         action = request.POST.get('action')
-        photo.qa_feedback = request.POST.get('feedback', '')
+        feedback = request.POST.get('feedback', '')
         
         if action == 'approve':
             photo.status = 'APPROVED'
         elif action == 'reject':
             photo.status = 'REJECTED'
             ActivityAlert.objects.create(message="QA rejected photo.", user=request.user, site=site, alert_type='REWORK')
+            
+        # Keep Rework flag forever so Contractor performance stats stay accurate
+        if 'Rework' in photo.qa_feedback:
+            photo.qa_feedback = f"[Reworked] {feedback}"
+        else:
+            photo.qa_feedback = feedback
         photo.save()
 
         if SitePhoto.objects.filter(site=site, status__in=['PENDING', 'REJECTED']).count() == 0 and SitePhoto.objects.filter(site=site).count() > 0:
@@ -319,13 +314,27 @@ def qa_review(request, site_id):
                 ActivityAlert.objects.create(message="Site Validated. Ready for technical writing.", user=request.user, site=site, alert_type='UPLOAD')
             return redirect('qa_hub')
         return redirect('qa_review', site_id=site.id)
-
     return render(request, 'reports/qa_review.html', {'site': site, 'photos': pending_photos})
+
+@login_required
+def approve_report(request, report_id):
+    # QA checks the Tech Writer's Draft and sends it to Client
+    user = request.user
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA'])):
+        return redirect('dashboard_home')
+        
+    report = get_object_or_404(Report, id=report_id)
+    if request.method == 'POST':
+        report.status = 'submitted'
+        report.save()
+        ActivityAlert.objects.create(message="Final Technical Report Approved and Sent to Client.", user=request.user, site=report.site, alert_type='UPLOAD')
+    return redirect('qa_hub')
 
 @login_required
 def tech_writer_hub(request):
     user = request.user
-    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer'])):
+    # ONLY Admins and Tech Writers. (QA is locked out from drafting).
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Tech Writer'])):
         return redirect('dashboard_home')
         
     reports_to_draft = Report.objects.filter(status='site_data_submitted')
@@ -334,7 +343,7 @@ def tech_writer_hub(request):
 @login_required
 def draft_report(request, report_id):
     user = request.user
-    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer'])):
+    if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Tech Writer'])):
         return redirect('dashboard_home')
 
     report = get_object_or_404(Report, id=report_id)
@@ -347,12 +356,9 @@ def draft_report(request, report_id):
         if final_pdf:
             report.final_document = final_pdf
             report.comments = comments
-            report.status = 'submitted' 
+            report.status = 'engineer_review' # NEW WORKFLOW: Sends to QA instead of Client
             report.save()
-            
-            ActivityAlert.objects.create(
-                message="Final Technical Report uploaded.", user=request.user, site=report.site, alert_type='UPLOAD'
-            )
+            ActivityAlert.objects.create(message="Draft Report submitted for QA final approval.", user=request.user, site=report.site, alert_type='UPLOAD')
             return redirect('tech_writer_hub')
 
     return render(request, 'reports/draft_report.html', {'report': report, 'photos': approved_photos})
@@ -383,24 +389,13 @@ def api_check_alerts(request):
         new_alerts = alerts.filter(timestamp__gt=last_check).order_by('-timestamp')
     else:
         new_alerts = []
-
     request.session['last_alert_check'] = now().isoformat()
-
-    alerts_data = []
-    for a in new_alerts:
-        alerts_data.append({
-            'message': a.message,
-            'site': a.site.site_id,
-            'type': a.alert_type
-        })
-
+    alerts_data = [{'message': a.message, 'site': a.site.site_id, 'type': a.alert_type} for a in new_alerts]
     return JsonResponse({'new_alerts': alerts_data})
 
 @login_required
 def geographical_map_view(request):
     user = request.user
-    
-    # Map Security: Users only see pins they are allowed to see
     if user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA', 'Tech Writer']):
         sites = Site.objects.all()
     elif hasattr(user, 'profile') and user.profile.role == 'Client':
@@ -411,27 +406,15 @@ def geographical_map_view(request):
     sites_data = []
     for site in sites:
         if site.latitude and site.longitude:
-            sites_data.append({
-                'name': site.site_id,
-                'lat': float(site.latitude),
-                'lng': float(site.longitude),
-                'priority': site.priority 
-            })
-            
-    context = {
-        'sites_json': json.dumps(sites_data)
-    }
-    
-    return render(request, 'reports/geographical_map_view.html', context)
+            sites_data.append({'name': site.site_id, 'lat': float(site.latitude), 'lng': float(site.longitude), 'priority': site.priority})
+    return render(request, 'reports/geographical_map_view.html', {'sites_json': json.dumps(sites_data)})
 
 @login_required
 def export_performance_csv(request):
     user = request.user
-    # Ensure only Clients or Admins can download this data
     if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Client'])):
         return redirect('dashboard_home')
     
-    # Filter based on role and project
     if hasattr(user, 'profile') and user.profile.role == 'Client':
         sites = Site.objects.filter(project__client=user.profile.client)
     else:
@@ -442,23 +425,17 @@ def export_performance_csv(request):
         sites = sites.filter(project_id=selected_project_id)
         
     contractors = User.objects.filter(assigned_sites__in=sites).distinct()
-    
-    # Create the CSV Response
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="Contractor_Performance_Export.csv"'
-    
     writer = csv.writer(response)
     writer.writerow(['Contractor Name', 'Total Submissions', 'Reworks', 'Rework Rate (%)', 'Common Errors'])
     
     for c in contractors:
         c_photos = SitePhoto.objects.filter(contractor=c, site__in=sites)
         total_subs = c_photos.count()
-        reworks = c_photos.filter(status='REJECTED').count()
+        reworks = c_photos.filter(Q(status='REJECTED') | Q(qa_feedback__icontains='Rework')).count()
         rework_rate = round((reworks / total_subs * 100), 1) if total_subs > 0 else 0
-        
-        recent_reworks = c_photos.filter(status='REJECTED').exclude(qa_feedback__isnull=True).exclude(qa_feedback='').order_by('-uploaded_at')[:2]
+        recent_reworks = c_photos.filter(Q(status='REJECTED') | Q(qa_feedback__icontains='Rework')).exclude(qa_feedback__isnull=True).exclude(qa_feedback='').order_by('-uploaded_at')[:2]
         errors = " | ".join([p.qa_feedback for p in recent_reworks]) if recent_reworks else "None"
-        
         writer.writerow([f"{c.first_name} {c.last_name}".strip() or c.username, total_subs, reworks, rework_rate, errors])
-        
     return response
