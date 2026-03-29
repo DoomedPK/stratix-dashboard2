@@ -78,15 +78,36 @@ def dashboard_home(request):
         {'stage': 'Completed & Delivered', 'count': total_reports_completed, 'icon': 'fa-check-double', 'color': 'success', 'example': 'Final technical reports successfully delivered.'},
     ]
 
-    # 5. Mini Map Data
+    # 5. Mini Map Data (NEW COLOR CODING LOGIC)
     sites_data = []
     for site in sites:
         if site.latitude and site.longitude: 
+            issues = site.issues.filter(is_resolved=False)
+            if issues.filter(severity='Critical').exists():
+                site_status = 'Critical Issue'
+                color = '#ef4444' # Red
+            elif issues.filter(severity='Major').exists():
+                site_status = 'Major Issue'
+                color = '#f97316' # Orange
+            elif issues.filter(severity='Minor').exists():
+                site_status = 'Minor Issue'
+                color = '#eab308' # Yellow
+            else:
+                report = Report.objects.filter(site=site).first()
+                if report and report.status == 'submitted':
+                    site_status = 'Completed (Good Condition)'
+                    color = '#10b981' # Green
+                else:
+                    site_status = 'In Progress'
+                    color = '#3b82f6' # Blue
+                    
             sites_data.append({
                 'name': site.site_id,
+                'site_name': site.site_name,
                 'lat': float(site.latitude),
                 'lng': float(site.longitude),
-                'priority': site.priority  
+                'status': site_status,
+                'color': color
             })
 
     # 6. Turnaround Time
@@ -100,9 +121,7 @@ def dashboard_home(request):
             tat_count += 1
     avg_tat = round(total_tat_days / tat_count, 1) if tat_count > 0 else 0
 
-    # ---------------------------------------------------------
-    # 6-MONTH HISTORICAL TREND DATA
-    # ---------------------------------------------------------
+    # 7. 6-MONTH HISTORICAL TREND DATA
     trend_labels = []
     tat_trend = []
     rework_trend = []
@@ -130,7 +149,7 @@ def dashboard_home(request):
         m_reworks = m_photos.filter(Q(status='REJECTED') | Q(qa_feedback__icontains='Rework')).count()
         rework_trend.append(round((m_reworks / m_total_subs * 100), 1) if m_total_subs > 0 else 0)
     
-    # 7. Contractor Performance Tracking
+    # 8. Contractor Performance Tracking
     contractor_stats = []
     is_client_or_admin = user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Client'])
     is_contractor = hasattr(user, 'profile') and user.profile.role == 'Contractor'
@@ -266,7 +285,6 @@ def site_visit_list(request):
 @login_required
 def report_issue(request, site_id):
     user = request.user
-    # FIX: Restrict Issue Reporting to QA and Admins Only
     if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA'])):
         return redirect('site_visit_list')
 
@@ -277,7 +295,6 @@ def report_issue(request, site_id):
         SiteIssue.objects.create(site=site, reported_by=request.user, severity=severity, description=description)
         ActivityAlert.objects.create(message=f"{severity} issue logged for this site.", user=request.user, site=site, alert_type='REWORK')
         
-    # Redirect dynamically so it works from both QA Hub and Site List
     referer = request.META.get('HTTP_REFERER')
     if referer:
         return redirect(referer)
@@ -498,10 +515,38 @@ def geographical_map_view(request):
     else:
         sites = Site.objects.filter(assigned_contractors=user)
     
+    # NEW MAP COLOR CODING LOGIC
     sites_data = []
     for site in sites:
         if site.latitude and site.longitude:
-            sites_data.append({'name': site.site_id, 'lat': float(site.latitude), 'lng': float(site.longitude), 'priority': site.priority})
+            issues = site.issues.filter(is_resolved=False)
+            if issues.filter(severity='Critical').exists():
+                site_status = 'Critical Issue'
+                color = '#ef4444' # Red
+            elif issues.filter(severity='Major').exists():
+                site_status = 'Major Issue'
+                color = '#f97316' # Orange
+            elif issues.filter(severity='Minor').exists():
+                site_status = 'Minor Issue'
+                color = '#eab308' # Yellow
+            else:
+                report = Report.objects.filter(site=site).first()
+                if report and report.status == 'submitted':
+                    site_status = 'Completed (Good Condition)'
+                    color = '#10b981' # Green
+                else:
+                    site_status = 'In Progress'
+                    color = '#3b82f6' # Blue
+                    
+            sites_data.append({
+                'name': site.site_id,
+                'site_name': site.site_name,
+                'lat': float(site.latitude),
+                'lng': float(site.longitude),
+                'status': site_status,
+                'color': color
+            })
+            
     return render(request, 'reports/geographical_map_view.html', {'sites_json': json.dumps(sites_data)})
 
 @login_required
