@@ -184,7 +184,7 @@ JAZZMIN_SETTINGS = {
         {"name": "Global Map Tracker", "url": "global_map", "icon": "fas fa-globe"}
     ],
     "usermenu_links": [
-        {"name": "Stratix Support", "url": "#", "icon": "fas fa-headset"},
+        {"name": "Stratix Support", "url": "/support/", "icon": "fas fa-headset"}, # 🚀 Updated URL here!
         {"model": "auth.user"}
     ],
     
