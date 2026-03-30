@@ -22,7 +22,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css" />
 
     <style>
-        body { background-color: #0f172a; color: #f1f5f9; padding-top: 80px; }
+        body { background-color: #0f172a; color: #f1f5f9; padding-top: 80px; position: relative !important; top: 0px !important;}
         .navbar { background-color: #1e2937; border-bottom: 1px solid #334155; }
         .card { background-color: #1e2937; border: 1px solid #334155; color: #f1f5f9; border-radius: 12px;}
         .text-muted { color: #94a3b8 !important; }
@@ -50,37 +50,38 @@
         .page-item.active .page-link { background-color: #3b82f6; border-color: #3b82f6; color: white; }
         .page-item.disabled .page-link { background-color: #0f172a; color: #64748b; border-color: #334155; }
         
-        /* ---------------------------------------------------
-           🚀 SEAMLESS GOOGLE TRANSLATE CUSTOMIZATION
-           --------------------------------------------------- */
-        /* 1. Hide the giant white top bar and stop the body from shifting */
-        .goog-te-banner-frame.skiptranslate { display: none !important; }
-        body { top: 0px !important; position: relative !important; }
+        /* ----------------------------------------------------------------------
+           🚀 FIX: Google Translate Seamless Integration CSS (Aggressive Override)
+           ---------------------------------------------------------------------- */
+        /* 1. Kill the white banner frame permanently */
+        .goog-te-banner-frame, .goog-te-banner-frame.skiptranslate, #goog-gt-tt { display: none !important; }
+        body { top: 0px !important; position: static !important; }
         
-        /* 2. Hide Google's logo and the "Powered by" text completely */
-        .goog-logo-link { display: none !important; }
-        .goog-te-gadget { color: transparent !important; font-size: 0px !important; display: flex; align-items: center; margin-bottom: 0 !important; }
-        
-        /* 3. Style the dropdown box to look like a sleek dashboard UI element */
+        /* 2. Style the dropdown box to look native (Dark Theme) */
         .goog-te-combo {
             background-color: #1e2937 !important;
-            color: #f8fafc !important;
+            color: #f1f5f9 !important;
             border: 1px solid #334155 !important;
-            border-radius: 6px !important;
-            padding: 6px 12px !important;
+            border-radius: 8px !important;
+            padding: 8px 12px !important;
             font-size: 0.85rem !important;
             font-family: inherit !important;
             font-weight: 600 !important;
-            outline: none !important;
             cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
             transition: border-color 0.2s;
+            outline: none !important;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             margin: 0 !important;
         }
         .goog-te-combo:hover { border-color: #38bdf8 !important; }
 
-        /* 4. Disable the annoying hover popups over translated words */
-        #goog-gt-tt { display: none !important; }
+        /* 3. Scrub all Google branding (logos, "powered by") */
+        .goog-te-gadget { color: transparent !important; font-size: 0px !important; overflow: hidden;}
+        .goog-te-gadget img { display: none !important; }
+        .goog-te-gadget span { display: none !important; }
+        .goog-te-gadget .goog-te-combo { display: inline-block !important; font-size: 0.85rem !important; color: #f1f5f9 !important; }
+
+        /* 4. Kill the annoying highlights/hover highlights over translated text */
         .goog-text-highlight { background-color: transparent !important; box-shadow: none !important; }
     </style>
     {% block extra_css %}{% endblock %}
@@ -105,7 +106,6 @@
             <div class="d-none d-md-flex w-50 justify-content-end align-items-center">
                 
                 <div class="me-3 d-flex align-items-center">
-                    <i class="fas fa-language text-muted me-2" style="font-size: 1.2rem;"></i>
                     <div id="google_translate_element"></div>
                 </div>
 
@@ -209,7 +209,7 @@
           new google.translate.TranslateElement({
               pageLanguage: 'en', 
               includedLanguages: 'en,es,fr', 
-              layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+              layout: google.translate.TranslateElement.InlineLayout.HORIZONTAL, # Standard layout allows aggressive CSS
               autoDisplay: false
           }, 'google_translate_element');
         }
