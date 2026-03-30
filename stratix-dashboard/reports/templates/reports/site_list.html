@@ -34,6 +34,15 @@
         </select>
     </div>
 
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %} alert-dismissible fade show shadow-sm" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+
     {% if reports %}
     <div class="card p-0 shadow-sm overflow-hidden">
         <div class="table-responsive">
@@ -61,14 +70,15 @@
                                 <span class="badge bg-secondary">Not Visited</span>
                             {% elif report.status == 'visit_in_progress' %}
                                 <span class="badge bg-warning text-dark"><i class="fas fa-hard-hat me-1"></i> Contractor On Site</span>
+                            {% elif report.status == 'qa_validation' %}
+                                <span class="badge bg-primary"><i class="fas fa-search me-1"></i> QA Validation</span>
                             {% elif report.status == 'submitted' %}
                                 <span class="badge bg-success"><i class="fas fa-check-double me-1"></i> Completed & Delivered</span>
                             {% else %}
-                                <span class="badge bg-info"><i class="fas fa-spinner fa-spin me-1"></i> Validation / Drafting</span>
+                                <span class="badge bg-info"><i class="fas fa-spinner fa-spin me-1"></i> Drafting Report</span>
                             {% endif %}
                         </td>
                         <td class="pe-4 text-end text-nowrap">
-                            
                             {% if user.is_superuser or user.profile.role == 'QA' or user.profile.role == 'Admin' %}
                                 <button type="button" class="btn btn-sm btn-outline-danger text-light" data-bs-toggle="modal" data-bs-target="#issueModal-{{ report.site.id }}" title="Report Site Issue"><i class="fas fa-exclamation-triangle"></i></button>
                             {% endif %}
@@ -83,7 +93,7 @@
                                 {% if report.status == 'not_visited' %}
                                     <a href="{% url 'start_visit' report.id %}" class="btn btn-sm btn-warning fw-bold text-dark ms-1"><i class="fas fa-map-marker-alt me-1"></i> Check-In</a>
                                 {% elif report.status == 'visit_in_progress' %}
-                                    <a href="{% url 'upload_photos' %}" class="btn btn-sm btn-outline-info fw-semibold ms-1"><i class="fas fa-camera me-1"></i> Upload Photos</a>
+                                    <a href="{% url 'upload_photos' %}?site_id={{ report.site.id }}" class="btn btn-sm btn-outline-info fw-semibold ms-1"><i class="fas fa-camera me-1"></i> Upload Photos</a>
                                 {% else %}
                                     <span class="badge bg-secondary px-3 py-2 ms-1"><i class="fas fa-lock me-1"></i> Locked for QA/Drafting</span>
                                 {% endif %}
