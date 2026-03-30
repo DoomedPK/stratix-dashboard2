@@ -1,152 +1,96 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block extra_css %}
-<style>
-    .upload-area { border: 2px dashed #0ea5e9; border-radius: 12px; padding: 40px; text-align: center; background-color: #0f172a; transition: 0.3s;}
-    .upload-area:hover { background-color: #1e2937; cursor: pointer; }
-    .form-control, .form-select { background-color: #0f172a; border: 1px solid #334155; color: white; }
-    .form-control:focus, .form-select:focus { background-color: #0f172a; color: white; border-color: #38bdf8; box-shadow: none; }
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="container py-4">
-    <a href="{% url 'site_visit_list' %}" class="btn btn-sm btn-outline-secondary mb-3"><i class="fas fa-arrow-left me-2"></i>Back to Directory</a>
-    
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <div class="card p-4 shadow-sm border-info border-opacity-50">
-                <h4 class="fw-bold mb-4"><i class="fas fa-camera text-info me-2"></i> Upload Site Photos</h4>
-                
-                <form id="uploadForm" action="{% url 'upload_photos' %}" method="POST" enctype="multipart/form-data">
+            <h2 class="fw-bold mb-4 text-white"><i class="fas fa-cloud-upload-alt me-2 text-info"></i> Contractor Photo Upload</h2>
+            
+            {% if messages %}
+                {% for message in messages %}
+                <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %} alert-dismissible fade show shadow-sm" role="alert">
+                    <i class="fas {% if message.tags == 'error' %}fa-exclamation-triangle{% else %}fa-check-circle{% endif %} me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="card p-4 shadow-sm border-info-left mb-4">
+                <form method="POST" enctype="multipart/form-data">
                     {% csrf_token %}
                     
-                    <div class="mb-4">
-                        <label class="form-label fw-semibold">Select Site</label>
-                        <select name="site_id" class="form-select" required>
-                            <option value="">-- Choose active site --</option>
-                            {% for site in sites %}
-                                <option value="{{ site.id }}">{{ site.site_id }} - {{ site.site_name }}</option>
+                    {% if selected_site %}
+                        <input type="hidden" name="site_id" value="{{ selected_site.id }}">
+                        <div class="alert bg-dark border-secondary text-light mb-4">
+                            Uploading to Site: <strong class="text-info fs-5">{{ selected_site.site_id }} - {{ selected_site.site_name }}</strong>
+                        </div>
+                    {% else %}
+                        <div class="mb-3">
+                            <label for="site_id" class="form-label text-muted fw-bold">Select Checked-In Site</label>
+                            <select name="site_id" id="site_id" class="form-select bg-dark text-light border-secondary" required>
+                                <option value="">-- Choose Site --</option>
+                                {% for site in sites %}
+                                    <option value="{{ site.id }}">{{ site.site_id }} - {{ site.site_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <label for="category" class="form-label text-muted fw-bold">Photo Category</label>
+                        <select name="category" id="category" class="form-select bg-dark text-light border-secondary" required>
+                            {% for cat, min_count in minimums.items %}
+                                <option value="{{ cat }}">{{ cat }} {% if min_count > 0 %}(Min: {{ min_count }}){% else %}(Optional){% endif %}</option>
                             {% endfor %}
                         </select>
                     </div>
 
-                    <div class="mb-4">
-                        <label class="form-label fw-semibold">Photo Category</label>
-                        <select name="category" class="form-select" required>
-                            <option value="Tower Base">Tower Base</option>
-                            <option value="Equipment Shelter">Equipment Shelter</option>
-                            <option value="Antennas">Antennas / Mounts</option>
-                            <option value="Grounding">Grounding Systems</option>
-                            <option value="General Site Overview">General Site Overview</option>
-                        </select>
+                    <div class="mb-3">
+                        <label for="site_images" class="form-label text-muted fw-bold">Select Photos</label>
+                        <input class="form-control bg-dark text-light border-secondary" type="file" id="site_images" name="site_images" accept="image/*" multiple required>
+                        <div class="form-text text-muted">You can select multiple photos at once.</div>
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-semibold">Upload Images (Multiple Allowed)</label>
-                        <div class="upload-area position-relative" id="dropZone">
-                            <i class="fas fa-cloud-upload-alt fs-1 text-info mb-3" id="uploadIcon"></i>
-                            <h5 id="uploadText">Select photos from device</h5>
-                            <input type="file" name="site_images" id="fileInput" class="form-control position-absolute top-0 start-0 w-100 h-100" style="opacity: 0; cursor: pointer;" accept="image/*" multiple required>
-                        </div>
+                        <label for="contractor_notes" class="form-label text-muted fw-bold">Contractor Notes (Optional)</label>
+                        <textarea class="form-control bg-dark text-light border-secondary" id="contractor_notes" name="contractor_notes" rows="2" placeholder="Add any details about this specific upload batch..."></textarea>
                     </div>
 
-                    <div class="mb-4">
-                        <label class="form-label fw-semibold">Contractor Notes (Optional)</label>
-                        <textarea class="form-control" name="notes" rows="3" placeholder="Add context for the QA reviewer..."></textarea>
-                    </div>
-
-                    <div id="progressContainer" class="mb-4" style="display: none;">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="small fw-bold text-info" id="progressText">Uploading files... 0%</span>
-                            <i class="fas fa-spinner fa-spin text-info" id="progressSpinner"></i>
-                        </div>
-                        <div class="progress" style="height: 12px; background-color: #1e2937; border: 1px solid #334155;">
-                            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar" style="width: 0%;"></div>
-                        </div>
-                    </div>
-
-                    <button type="submit" id="submitBtn" class="btn btn-info w-100 fw-bold py-2"><i class="fas fa-paper-plane me-2"></i> Submit to QA Queue</button>
+                    <button type="submit" class="btn btn-info w-100 fw-bold text-dark"><i class="fas fa-upload me-2"></i> Upload to Category</button>
                 </form>
             </div>
+
+            {% if selected_site %}
+            <div class="card p-4 shadow-sm border-success-left">
+                <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-3 mb-4">
+                    <h5 class="fw-bold mb-0 text-white"><i class="fas fa-images me-2 text-success"></i> Upload Preview</h5>
+                    
+                    <form method="POST" action="{% url 'finish_upload' selected_site.id %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success fw-bold"><i class="fas fa-check-double me-2"></i> Finish Uploads & Submit to QA</button>
+                    </form>
+                </div>
+                
+                {% if uploaded_photos %}
+                <div class="row g-2">
+                    {% for photo in uploaded_photos %}
+                    <div class="col-4 col-md-3">
+                        <a href="{{ photo.image.url }}" data-fancybox="gallery" data-caption="{{ photo.category }}">
+                            <img src="{{ photo.image.url }}" class="img-fluid rounded border border-secondary" style="height: 100px; width: 100%; object-fit: cover;" alt="Site Photo">
+                        </a>
+                        <div class="text-center mt-1 text-muted" style="font-size: 0.65rem;">{{ photo.category|truncatechars:15 }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center mb-0 fst-italic">No photos uploaded for this site yet.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-    // Handle File Selection Text Update
-    document.getElementById('fileInput').addEventListener('change', function(e) {
-        const fileCount = e.target.files.length;
-        const uploadText = document.getElementById('uploadText');
-        if (fileCount > 0) {
-            uploadText.innerText = fileCount + ' image(s) selected!';
-            uploadText.className = 'text-success fw-bold';
-        }
-    });
-
-    // AJAX UPLOAD LOGIC
-    document.getElementById('uploadForm').addEventListener('submit', function(e) {
-        e.preventDefault(); 
-
-        const form = this;
-        const formData = new FormData(form);
-        const xhr = new XMLHttpRequest();
-        
-        const progressContainer = document.getElementById('progressContainer');
-        const progressBar = document.getElementById('progressBar');
-        const progressText = document.getElementById('progressText');
-        const progressSpinner = document.getElementById('progressSpinner');
-        const submitBtn = document.getElementById('submitBtn');
-
-        progressContainer.style.display = 'block';
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin me-2"></i> Processing...';
-
-        xhr.open('POST', form.action, true);
-        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest'); 
-
-        xhr.upload.addEventListener('progress', function(e) {
-            if (e.lengthComputable) {
-                const percent = Math.round((e.loaded / e.total) * 100);
-                progressBar.style.width = percent + '%';
-                progressText.innerText = 'Uploading files... ' + percent + '%';
-                
-                if (percent === 100) {
-                    progressText.innerText = 'Processing on server...';
-                    progressBar.classList.remove('progress-bar-striped');
-                }
-            }
-        });
-
-        xhr.onload = function() {
-            if (xhr.status >= 200 && xhr.status < 300) {
-                progressBar.classList.add('bg-success');
-                progressBar.classList.remove('bg-info');
-                progressText.innerText = 'Upload Complete! Redirecting...';
-                progressText.classList.replace('text-info', 'text-success');
-                progressSpinner.classList.replace('fa-spinner', 'fa-check-circle');
-                progressSpinner.classList.replace('fa-spin', 'text-success');
-                
-                setTimeout(() => { window.location.href = "{% url 'site_visit_list' %}"; }, 1000);
-            } else {
-                alert('An error occurred during upload. Please check your connection and try again.');
-                progressContainer.style.display = 'none';
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i> Submit to QA Queue';
-            }
-        };
-
-        xhr.onerror = function() {
-            alert('A network error occurred. Please check your connection.');
-            progressContainer.style.display = 'none';
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i> Submit to QA Queue';
-        };
-
-        xhr.send(formData);
-    });
-</script>
 {% endblock %}
