@@ -2,30 +2,24 @@ from django.contrib import admin
 from django.contrib.auth.models import User, Group, Permission
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
-from unfold.admin import ModelAdmin, TabularInline
-from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 from .models import Client, Project, UserProfile, Site, Report, SitePhoto, ActivityAlert, SiteIssue
 from django.utils.html import format_html
 
-# 🚀 FIX: Re-added the missing Permission registration
 @admin.register(Permission)
-class PermissionAdmin(ModelAdmin):
+class PermissionAdmin(admin.ModelAdmin):
     search_fields = ('name', 'codename')
 
 admin.site.unregister(Group)
 @admin.register(Group)
-class CustomGroupAdmin(BaseGroupAdmin, ModelAdmin):
+class CustomGroupAdmin(BaseGroupAdmin):
     search_fields = ('name',)
 
 admin.site.unregister(User)
 @admin.register(User)
-class CustomUserAdmin(BaseUserAdmin, ModelAdmin):
-    form = UserChangeForm
-    add_form = UserCreationForm
-    change_password_form = AdminPasswordChangeForm
+class CustomUserAdmin(BaseUserAdmin):
     autocomplete_fields = ['groups', 'user_permissions']
 
-class SitePhotoInline(TabularInline):
+class SitePhotoInline(admin.TabularInline):
     model = SitePhoto
     extra = 0 
     readonly_fields = ['image_preview', 'uploaded_at']
@@ -38,20 +32,20 @@ class SitePhotoInline(TabularInline):
     image_preview.short_description = 'Preview'
 
 @admin.register(Client)
-class ClientAdmin(ModelAdmin):
+class ClientAdmin(admin.ModelAdmin):
     list_display = ('name',) 
     search_fields = ('name',)
     ordering = ('name',)
 
 @admin.register(Project)
-class ProjectAdmin(ModelAdmin):
+class ProjectAdmin(admin.ModelAdmin):
     list_display = ('name', 'client', 'require_photo_minimums', 'status', 'start_date', 'end_date')
     list_filter = ('status', 'client', 'require_photo_minimums')
     search_fields = ('name',)
     ordering = ('-start_date',)
 
 @admin.register(Site)
-class SiteAdmin(ModelAdmin):
+class SiteAdmin(admin.ModelAdmin):
     list_display = ('site_id', 'site_name', 'project', 'priority')
     list_filter = ('priority', 'project__client', 'project')
     search_fields = ('site_id', 'site_name', 'location')
@@ -59,21 +53,21 @@ class SiteAdmin(ModelAdmin):
     autocomplete_fields = ['assigned_contractors']
 
 @admin.register(Report)
-class ReportAdmin(ModelAdmin):
+class ReportAdmin(admin.ModelAdmin):
     list_display = ('site', 'status', 'submitted_at')
     list_filter = ('status',)
     search_fields = ('site__site_id', 'site__site_name')
     readonly_fields = ('submitted_at',)
 
 @admin.register(UserProfile)
-class UserProfileAdmin(ModelAdmin):
+class UserProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'role', 'client')
     list_filter = ('role', 'client')
     search_fields = ('user__username', 'user__first_name', 'user__last_name')
     autocomplete_fields = ['user']
 
 @admin.register(SitePhoto)
-class SitePhotoAdmin(ModelAdmin):
+class SitePhotoAdmin(admin.ModelAdmin):
     list_display = ('site', 'category', 'contractor', 'status', 'image_thumbnail', 'uploaded_at')
     list_filter = ('status', 'category', 'contractor')
     search_fields = ('site__site_id', 'contractor_notes', 'qa_feedback')
@@ -86,14 +80,14 @@ class SitePhotoAdmin(ModelAdmin):
     image_thumbnail.short_description = 'Photo'
 
 @admin.register(SiteIssue)
-class SiteIssueAdmin(ModelAdmin):
+class SiteIssueAdmin(admin.ModelAdmin):
     list_display = ('site', 'severity', 'is_resolved', 'reported_by', 'created_at')
     list_filter = ('severity', 'is_resolved')
     search_fields = ('site__site_id', 'description')
     autocomplete_fields = ['site', 'reported_by']
 
 @admin.register(ActivityAlert)
-class ActivityAlertAdmin(ModelAdmin):
+class ActivityAlertAdmin(admin.ModelAdmin):
     list_display = ('site', 'alert_type', 'user', 'timestamp', 'message')
     list_filter = ('alert_type', 'timestamp')
     search_fields = ('site__site_id', 'message', 'user__username')
