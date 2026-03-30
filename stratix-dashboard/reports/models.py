@@ -73,12 +73,6 @@ class Report(models.Model):
     def __str__(self):
         return f"Report for {self.site.site_id}"
 
-# 🚀 FIX: Automatic Cleanup for Report PDFs
-@receiver(pre_delete, sender=Report)
-def delete_report_file(sender, instance, **kwargs):
-    if instance.final_document:
-        instance.final_document.delete(save=False)
-
 class SitePhoto(models.Model):
     STATUS_CHOICES = [
         ('PENDING', 'Pending Validation'),
@@ -114,11 +108,6 @@ class SitePhoto(models.Model):
     def __str__(self):
         return f"Photo for {self.site.site_id} by {self.contractor.username} - {self.status}"
 
-# 🚀 FIX: Automatic Cleanup for Site Photos (Supabase cleanup)
-@receiver(pre_delete, sender=SitePhoto)
-def delete_photo_image(sender, instance, **kwargs):
-    if instance.image:
-        instance.image.delete(save=False)
 
 class ActivityAlert(models.Model):
     message = models.CharField(max_length=255)
@@ -180,3 +169,33 @@ class SiteIssue(models.Model):
 
     def __str__(self):
         return f"{self.site.site_id} - {self.severity} Issue"
+
+# 🚀 NEW: Dedicated Support Ticket Database Table
+class SupportTicket(models.Model):
+    STATUS_CHOICES = [
+        ('Pending', 'Pending'),
+        ('In Progress', 'In Progress'),
+        ('Resolved', 'Resolved'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='support_tickets')
+    subject = models.CharField(max_length=150)
+    description = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Ticket #{self.id} - {self.subject} by {self.user.username}"
+
+
+# ---------------------------------------------------------
+# AUTO-CLEANUP SIGNALS FOR EXTERNAL S3 STORAGE
+# ---------------------------------------------------------
+@receiver(pre_delete, sender=SitePhoto)
+def auto_delete_photo_on_delete(sender, instance, **kwargs):
+    if instance.image:
+        instance.image.delete(save=False)
+
+@receiver(pre_delete, sender=Report)
+def auto_delete_pdf_on_delete(sender, instance, **kwargs):
+    if instance.final_document:
+        instance.final_document.delete(save=False)
