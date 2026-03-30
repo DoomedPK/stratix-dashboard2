@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.models import User, Group, Permission
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
-from .models import Client, Project, UserProfile, Site, Report, SitePhoto, ActivityAlert, SiteIssue
+from .models import Client, Project, UserProfile, Site, Report, SitePhoto, ActivityAlert, SiteIssue, SupportTicket
 from django.utils.html import format_html
 
 @admin.register(Permission)
@@ -101,3 +101,12 @@ class ActivityAlertAdmin(admin.ModelAdmin):
         return False
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser
+
+# 🚀 NEW: Support Ticket Admin View
+@admin.register(SupportTicket)
+class SupportTicketAdmin(admin.ModelAdmin):
+    list_display = ('id', 'subject', 'user', 'status', 'created_at')
+    list_filter = ('status', 'created_at')
+    search_fields = ('subject', 'description', 'user__username', 'user__email')
+    readonly_fields = ('created_at',)
+    autocomplete_fields = ['user']
