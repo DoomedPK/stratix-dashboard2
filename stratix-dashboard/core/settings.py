@@ -2,21 +2,28 @@ import os
 from pathlib import Path
 from decouple import config
 import dj_database_url
-from django.templatetags.static import static
 
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('DJANGO_SECRET_KEY', default='django-insecure-stratix-default-key-123')
+
+# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DJANGO_DEBUG', default=False, cast=bool)
 
+# Hosts that are allowed to display the site
 ALLOWED_HOSTS = ['stratix-dashboard.onrender.com', 'stratixjm-dashboard.onrender.com', '.onrender.com', 'localhost', '127.0.0.1']
 
+# Domains trusted to submit forms and passwords
 CSRF_TRUSTED_ORIGINS = [
     'https://stratix-dashboard.onrender.com',
     'https://stratixjm-dashboard.onrender.com',
 ]
 
+# Application definition
 INSTALLED_APPS = [
-    'unfold',  # 🚀 MUST be before django.contrib.admin
+    'jazzmin', # 🚀 WE ARE BACK TO JAZZMIN!
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -24,19 +31,21 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     
+    # Internal Apps
     'reports',
     
+    # Third-party
     'corsheaders',
     'rest_framework',
     'channels',
     'crispy_forms',
     'crispy_bootstrap5',
-    'storages', 
+    'storages', # Required for Supabase S3 Storage
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', # whitenoise for static
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -68,6 +77,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 ASGI_APPLICATION = 'core.asgi.application'
 
+# Database configuration (Supabase PostgreSQL)
 DATABASES = {
     'default': dj_database_url.config(
         default=config('DATABASE_URL', default='sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3')),
@@ -76,6 +86,7 @@ DATABASES = {
     )
 }
 
+# Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -83,15 +94,18 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
+# Internationalization
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
+# Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
+# Use WhiteNoise for static files in production
 if not DEBUG:
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
@@ -104,6 +118,7 @@ LOGOUT_REDIRECT_URL = 'login'
 CORS_ALLOW_ALL_ORIGINS = True
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
+# Redis/Channels Configuration
 REDIS_URL = config('REDIS_URL', default=None)
 if REDIS_URL:
     CHANNEL_LAYERS = {
@@ -117,6 +132,9 @@ else:
         'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'},
     }
 
+# ----------------------------------------------------------------------
+# SUPABASE S3-COMPATIBLE STORAGE CONFIGURATION
+# ----------------------------------------------------------------------
 if not DEBUG:
     SUPABASE_PROJECT_REF = config('SUPABASE_PROJECT_REF', default='')
     SUPABASE_ANON_KEY = config('SUPABASE_ANON_KEY', default='')
@@ -141,32 +159,48 @@ else:
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # ----------------------------------------------------------------------
-# 🚀 NEW: UNFOLD ADMIN UI CONFIGURATION
+# 🚀 JAZZMIN ADMIN UI CONFIGURATION
 # ----------------------------------------------------------------------
-UNFOLD = {
-    "SITE_TITLE": "Stratix Admin",
-    "SITE_HEADER": "Stratix Command Center",
-    "SITE_URL": "/",
-    "SITE_ICON": {
-        "light": lambda request: static("images/stratix-logo.png"),  
-        "dark": lambda request: static("images/stratix-logo.png"), 
+JAZZMIN_SETTINGS = {
+    "site_title": "Stratix Admin",
+    "site_header": "Stratix",
+    "site_brand": "STRATIX COMMAND",
+    "site_logo": "images/stratix-logo.png",
+    "welcome_sign": "Welcome to the Stratix Global Command Center",
+    "copyright": "Stratix Ltd",
+    "search_model": ["reports.Site", "auth.User"],
+    "topmenu_links": [
+        {"name": "Home",  "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "Dashboard", "url": "dashboard_home"},
+        {"model": "auth.User"},
+    ],
+    "usermenu_links": [
+        {"name": "My Account", "url": "/admin/auth/user/", "icon": "fas fa-user-circle"},
+    ],
+    "show_sidebar": True,
+    "navigation_expanded": False,
+    "show_ui_builder": False,
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "reports.Client": "fas fa-building",
+        "reports.Project": "fas fa-project-diagram",
+        "reports.Site": "fas fa-tower-cell",
+        "reports.Report": "fas fa-file-invoice",
+        "reports.SitePhoto": "fas fa-camera",
+        "reports.ActivityAlert": "fas fa-bell",
+        "reports.UserProfile": "fas fa-id-card",
+        "reports.SiteIssue": "fas fa-exclamation-triangle",
     },
-    "SITE_SYMBOL": "speed",  
-    "SHOW_HISTORY": True, 
-    "SHOW_VIEW_ON_SITE": True,  
-    "COLORS": {
-        "primary": {
-            "50": "250 250 250",
-            "100": "244 244 245",
-            "200": "228 228 231",
-            "300": "212 212 216",
-            "400": "161 161 170",
-            "500": "113 113 122",
-            "600": "82 82 91",
-            "700": "63 63 70",
-            "800": "39 39 42",
-            "900": "24 24 27",
-            "950": "9 9 11",
-        },
-    },
+    "order_with_respect_to": ["reports", "auth"],
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "navbar": "navbar-dark", 
+    "theme": "darkly",
+    "dark_mode_theme": "darkly",
+    "sidebar_nav_child_indent": True,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
 }
