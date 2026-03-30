@@ -15,7 +15,7 @@ DEBUG = config('DJANGO_DEBUG', default=False, cast=bool)
 # Hosts that are allowed to display the site
 ALLOWED_HOSTS = ['stratix-dashboard.onrender.com', 'stratixjm-dashboard.onrender.com', '.onrender.com', 'localhost', '127.0.0.1']
 
-# 🚀 FIX: Domains trusted to submit forms and passwords
+# Domains trusted to submit forms and passwords
 CSRF_TRUSTED_ORIGINS = [
     'https://stratix-dashboard.onrender.com',
     'https://stratixjm-dashboard.onrender.com',
@@ -23,6 +23,7 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Application definition
 INSTALLED_APPS = [
+    'jazzmin', # 🚀 FIX: This MUST be the very first app to inject the custom UI
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -38,6 +39,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'channels',
     'crispy_forms',
+    'crispy_bootstrap5',
     'storages', # Required for Supabase S3 Storage
 ]
 
@@ -107,7 +109,6 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 if not DEBUG:
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_URL = 'login'
@@ -115,8 +116,6 @@ LOGIN_REDIRECT_URL = 'dashboard_home'
 LOGOUT_REDIRECT_URL = 'login'
 
 CORS_ALLOW_ALL_ORIGINS = True
-
-# Crispy Forms
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
 # Redis/Channels Configuration
@@ -125,52 +124,83 @@ if REDIS_URL:
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {
-                "hosts": [REDIS_URL],
-            },
+            'CONFIG': {"hosts": [REDIS_URL]},
         },
     }
 else:
-    # Fallback for local development
     CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels.layers.InMemoryChannelLayer',
-        },
+        'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'},
     }
 
 # ----------------------------------------------------------------------
-# SUPABASE S3-COMPATIBLE STORAGE CONFIGURATION (Fixes vanishing files)
+# SUPABASE S3-COMPATIBLE STORAGE CONFIGURATION 
 # ----------------------------------------------------------------------
-# When debug is False (production), send files to Supabase Storage.
 if not DEBUG:
-    # Required parameters to be set in Render Environment
     SUPABASE_PROJECT_REF = config('SUPABASE_PROJECT_REF', default='')
     SUPABASE_ANON_KEY = config('SUPABASE_ANON_KEY', default='')
     SUPABASE_STORAGE_BUCKET_NAME = config('SUPABASE_STORAGE_BUCKET_NAME', default='site-photos')
 
     if SUPABASE_PROJECT_REF and SUPABASE_ANON_KEY:
-        # Django Storages (S3) Settings mapped to Supabase Storage
         AWS_ACCESS_KEY_ID = SUPABASE_ANON_KEY
         AWS_SECRET_ACCESS_KEY = SUPABASE_ANON_KEY
         AWS_STORAGE_BUCKET_NAME = SUPABASE_STORAGE_BUCKET_NAME
-        
-        # Supabase unique S3-compatible endpoint format
         AWS_S3_ENDPOINT_URL = f'https://{SUPABASE_PROJECT_REF}.supabase.co/storage/v1/s3'
-        
-        # Optimization settings for Supabase
         AWS_S3_FILE_OVERWRITE = False
-        AWS_DEFAULT_ACL = None # Supabase handles permission via RLS, not ACLs
-        AWS_S3_REGION_NAME = 'us-east-1' # dummy region often needed by boto3
+        AWS_DEFAULT_ACL = None 
+        AWS_S3_REGION_NAME = 'us-east-1' 
         AWS_S3_SIGNATURE_VERSION = 's3v4'
         AWS_S3_CUSTOM_DOMAIN = f'{SUPABASE_PROJECT_REF}.supabase.co/storage/v1/object/public/{SUPABASE_STORAGE_BUCKET_NAME}'
         AWS_S3_USE_SSL = True
 
-        # Critical: Set Django to use the S3 engine for media
         DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-        
-        # Files are now served directly from the Supabase public storage endpoint
         MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
 else:
-    # Local Development Fallback
     MEDIA_URL = '/media/'
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# ----------------------------------------------------------------------
+# 🚀 FIX: JAZZMIN ADMIN UI CUSTOMIZATION
+# ----------------------------------------------------------------------
+JAZZMIN_SETTINGS = {
+    "site_title": "Stratix Admin",
+    "site_header": "Stratix",
+    "site_brand": "STRATIX COMMAND",
+    "site_logo": "images/stratix-logo.png",
+    "welcome_sign": "Welcome to the Stratix Global Command Center",
+    "copyright": "Stratix Ltd",
+    "search_model": ["reports.Site", "auth.User"],
+    "topmenu_links": [
+        {"name": "Home",  "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "Dashboard", "url": "dashboard_home"},
+        {"model": "auth.User"},
+    ],
+    "usermenu_links": [
+        {"name": "My Account", "url": "/admin/auth/user/", "icon": "fas fa-user-circle"},
+    ],
+    "show_sidebar": True,
+    "navigation_expanded": False,
+    "show_ui_builder": False,
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "reports.Client": "fas fa-building",
+        "reports.Project": "fas fa-project-diagram",
+        "reports.Site": "fas fa-tower-cell",
+        "reports.Report": "fas fa-file-invoice",
+        "reports.SitePhoto": "fas fa-camera",
+        "reports.ActivityAlert": "fas fa-bell",
+        "reports.UserProfile": "fas fa-id-card",
+        "reports.SiteIssue": "fas fa-exclamation-triangle",
+    },
+    "order_with_respect_to": ["reports", "auth"],
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "navbar": "navbar-dark", 
+    "theme": "darkly",
+    "dark_mode_theme": "darkly",
+    "sidebar_nav_child_indent": True,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
+}
