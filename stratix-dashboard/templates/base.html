@@ -49,6 +49,13 @@
         .page-link:hover { background-color: #38bdf8; color: #0f172a; border-color: #38bdf8; }
         .page-item.active .page-link { background-color: #3b82f6; border-color: #3b82f6; color: white; }
         .page-item.disabled .page-link { background-color: #0f172a; color: #64748b; border-color: #334155; }
+        
+        /* FIX 8: Google Translate Clean UI */
+        .goog-te-banner-frame.skiptranslate { display: none !important; }
+        body { top: 0px !important; }
+        .goog-logo-link { display:none !important; }
+        .goog-te-gadget { color: transparent !important; }
+        .goog-te-combo { background-color: #0f172a; color: white; border: 1px solid #334155; border-radius: 6px; padding: 4px; font-size: 0.8rem; outline: none; }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -70,6 +77,9 @@
             </div>
             
             <div class="d-none d-md-flex w-50 justify-content-end align-items-center">
+                
+                <div class="me-3 mt-1" id="google_translate_element"></div>
+
                  <div class="dropdown me-4">
                     <button class="btn btn-dark position-relative border-0 bg-transparent p-0 mt-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="bellIconBtn">
                         <i class="fas fa-bell fs-5 text-warning"></i>
@@ -165,6 +175,13 @@
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.umd.js"></script>
     
+    <script type="text/javascript">
+        function googleTranslateElementInit() {
+          new google.translate.TranslateElement({pageLanguage: 'en', includedLanguages: 'en,es,fr', layout: google.translate.TranslateElement.InlineLayout.SIMPLE}, 'google_translate_element');
+        }
+    </script>
+    <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
     <script>
         $(document).ready(function() {
             if ($('table.table').length > 0) {
