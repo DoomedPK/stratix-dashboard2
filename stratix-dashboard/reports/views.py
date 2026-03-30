@@ -9,7 +9,7 @@ from django.contrib.auth import logout
 from django.db.models import Q
 from django.contrib.auth.models import User
 from django.contrib import messages
-from .models import Site, SitePhoto, Report, ActivityAlert, Project, SiteIssue
+from .models import Site, SitePhoto, Report, ActivityAlert, Project, SiteIssue, Client
 from django.utils.timezone import now
 
 @login_required
@@ -78,10 +78,10 @@ def dashboard_home(request):
         {'stage': 'Completed & Delivered', 'count': total_reports_completed, 'icon': 'fa-check-double', 'color': 'success', 'example': 'Final technical reports successfully delivered.'},
     ]
 
-    # 5. Mini Map Data (NEW COLOR CODING LOGIC)
+    # 5. Mini Map Data
     sites_data = []
     for site in sites:
-        if site.latitude and site.longitude: 
+        if site.latitude and site.longitude:
             issues = site.issues.filter(is_resolved=False)
             if issues.filter(severity='Critical').exists():
                 site_status = 'Critical Issue'
@@ -204,6 +204,7 @@ def dashboard_home(request):
     }
     return render(request, 'reports/dashboard.html', context)
 
+
 @login_required
 def import_sites(request):
     user = request.user
@@ -244,8 +245,14 @@ def import_sites(request):
                     
                 latitude = float(lat_val) if lat_val else None
                 longitude = float(lng_val) if lng_val else None
+                
+                # 🚀 FIX: Creates a default client so new projects don't violate database rules
+                default_client, _ = Client.objects.get_or_create(name="Unassigned Client (Auto-Imported)")
                     
-                project, p_created = Project.objects.get_or_create(name=project_name)
+                project, p_created = Project.objects.get_or_create(
+                    name=project_name,
+                    defaults={'client': default_client}
+                )
                 
                 site, s_created = Site.objects.update_or_create(
                     site_id=site_id,
@@ -266,6 +273,7 @@ def import_sites(request):
             return redirect('import_sites')
 
     return render(request, 'reports/import_sites.html')
+
 
 @login_required
 def site_visit_list(request):
@@ -515,7 +523,6 @@ def geographical_map_view(request):
     else:
         sites = Site.objects.filter(assigned_contractors=user)
     
-    # NEW MAP COLOR CODING LOGIC
     sites_data = []
     for site in sites:
         if site.latitude and site.longitude:
