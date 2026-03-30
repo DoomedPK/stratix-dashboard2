@@ -5,7 +5,7 @@ channels==4.1.0
 channels-redis==4.2.0
 daphne==4.1.2
 dj-database-url==2.1.0
-Django==5.1.4
+Django==5.0.8    # 🚀 FIX: Downgraded to 5.0.8 for full Jazzmin UI compatibility
 django-cors-headers==4.6.0
 django-crispy-forms==2.3
 crispy-bootstrap5==2024.2
