@@ -115,6 +115,12 @@
                     <div id="google_translate_element" style="display:none;"></div>
                 </div>
 
+                 <div class="me-4 mt-1">
+                    <a href="{% url 'support_page' %}" class="text-warning text-decoration-none" title="Stratix Support">
+                        <i class="fas fa-headset fs-5"></i>
+                    </a>
+                 </div>
+
                  <div class="dropdown me-4">
                     <button class="btn btn-dark position-relative border-0 bg-transparent p-0 mt-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="bellIconBtn">
                         <i class="fas fa-bell fs-5 text-warning"></i>
@@ -191,6 +197,10 @@
                 {% endif %}
 
                 <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'global_map' %}"><i class="fas fa-globe me-3 text-success"></i> Global Map</a></li>
+
+                <li class="nav-item border-top border-secondary pt-2 mt-2">
+                    <a class="nav-link text-white py-2 px-3" href="{% url 'support_page' %}"><i class="fas fa-headset me-3 text-warning"></i> Stratix Support</a>
+                </li>
 
                 {% if user.is_superuser or user.profile.role == 'Admin' %}
                 <li class="nav-item mt-3 border-top border-secondary pt-3"><a class="nav-link text-danger py-2 px-3" href="{% url 'admin:index' %}"><i class="fas fa-user-shield me-3"></i> Admin Panel</a></li>
