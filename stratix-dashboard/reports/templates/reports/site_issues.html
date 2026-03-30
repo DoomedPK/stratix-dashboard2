@@ -15,7 +15,7 @@
     <div class="row mb-4 align-items-center">
         <div class="col-md-12">
             <h2 class="fw-bold mb-3 mb-md-0"><i class="fas fa-exclamation-triangle me-2 text-danger"></i> Active Site Issues</h2>
-            <p class="text-muted">A log of all unresolved problems reported by field contractors.</p>
+            <p class="text-muted">A log of all unresolved problems reported by QA and Admin.</p>
         </div>
     </div>
 
@@ -36,7 +36,7 @@
                     <tr>
                         <th class="ps-4 py-3">Site ID</th>
                         <th class="py-3">Project / Name</th>
-                        <th class="pe-4 py-3 text-end">Status</th>
+                        <th class="py-3" style="width: 40%;">Issue Description</th> <th class="pe-4 py-3 text-end">Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -47,6 +47,12 @@
                             <div class="fw-semibold text-light">{{ issue.site.project.name }}</div>
                             <div class="small text-muted">{{ issue.site.site_name }}</div>
                         </td>
+                        
+                        <td>
+                            <p class="text-light mb-1 small text-wrap">{{ issue.description }}</p>
+                            <span class="text-muted" style="font-size: 0.65rem;"><i class="fas fa-clock me-1"></i>{{ issue.created_at|timesince }} ago by {{ issue.reported_by.username|default:"System" }}</span>
+                        </td>
+
                         <td class="pe-4 text-end">
                             {% if issue.severity == 'Minor' %}
                                 <span class="badge bg-dark text-info border border-info px-3 py-2"><i class="fas fa-info-circle me-1"></i> Minor</span>
@@ -99,7 +105,6 @@
                    "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>"
         });
 
-        // Prepend dropdown next to search box seamlessly
         $('.dataTables_filter').prepend($('#projectFilterWrapper').html());
         $('#projectFilterWrapper').remove();
 
