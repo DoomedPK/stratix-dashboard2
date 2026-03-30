@@ -7,7 +7,7 @@
     <title>Real-Time Cell Tower Tracking | Stratix</title>
     
     <link rel="manifest" href="{% url 'manifest' %}">
-    <meta name="theme-color" content="#1e2937">
+    <meta name="theme-color" content="#0f172a">
     <link rel="apple-touch-icon" href="{% static 'images/stratix-logo.png' %}">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -19,42 +19,82 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css" />
 
     <style>
-        body { background-color: #0f172a; color: #f1f5f9; padding-top: 80px; }
-        .navbar { background-color: #1e2937; border-bottom: 1px solid #334155; }
-        .card { background-color: #1e2937; border: 1px solid #334155; color: #f1f5f9; border-radius: 12px;}
+        /* 🚀 1. APPLE SYSTEM FONT & SMOOTH FADE-IN */
+        body { 
+            background-color: #0f172a; 
+            color: #f1f5f9; 
+            padding-top: 80px; 
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol" !important;
+            animation: fadeIn 0.4s ease-out forwards;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 🚀 2. iOS FROSTED GLASS NAVBAR */
+        .navbar { 
+            background-color: rgba(15, 23, 42, 0.75) !important; 
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08); 
+        }
+
+        .card { 
+            background-color: #1e2937; 
+            border: 1px solid #334155; 
+            color: #f1f5f9; 
+            border-radius: 16px; /* 🚀 Apple-style rounded corners */
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        
         .text-muted { color: #94a3b8 !important; }
-        .offcanvas { background-color: rgba(15, 23, 42, 0.98) !important; backdrop-filter: blur(10px); border-right: 1px solid #334155; }
+        
+        /* 🚀 3. iOS FROSTED GLASS SIDE MENU */
+        .offcanvas { 
+            background-color: rgba(15, 23, 42, 0.85) !important; 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.08); 
+        }
+        
         .stratix-text { color: #ffffff !important; font-weight: 900; letter-spacing: -1px; }
         .hamburger-btn { font-size: 1.5rem; color: #fff; border: none; background: transparent; padding: 0.5rem; transition: 0.2s;}
-        .hamburger-btn:hover { color: #38bdf8; }
-        .nav-link { border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
-        .nav-link:hover { background-color: #1e2937; color: #38bdf8 !important; padding-left: 25px !important;}
+        .hamburger-btn:hover { color: #38bdf8; transform: scale(1.1); }
         
-        .search-bar { background-color: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px;}
-        .search-bar:focus { background-color: #0f172a; color: white; border-color: #38bdf8; box-shadow: none; }
+        .nav-link { border-radius: 10px; margin-bottom: 5px; transition: all 0.2s ease; font-weight: 500; }
+        .nav-link:hover { background-color: rgba(255,255,255,0.05); color: #38bdf8 !important; padding-left: 25px !important;}
         
-        #siteMap, #miniMap { border-radius: 8px; border: 2px solid #334155; z-index: 1;}
+        /* 🚀 Buttons - Added tactile click scaling */
+        .btn { transition: all 0.2s ease; border-radius: 8px; font-weight: 600; }
+        .btn:active { transform: scale(0.96); }
+        
+        .search-bar { background-color: rgba(255,255,255,0.05); border: 1px solid #334155; color: white; border-radius: 10px;}
+        .search-bar:focus { background-color: rgba(255,255,255,0.1); color: white; border-color: #38bdf8; box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.1); }
+        
+        #siteMap, #miniMap { border-radius: 12px; border: 1px solid #334155; z-index: 1;}
 
         .dataTables_wrapper .dataTables_length select, .dataTables_wrapper .dataTables_filter input {
-            background-color: #0f172a; color: white; border: 1px solid #334155; border-radius: 6px; padding: 4px 8px;
+            background-color: rgba(255,255,255,0.05); color: white; border: 1px solid #334155; border-radius: 8px; padding: 6px 12px;
         }
         .dataTables_wrapper .dataTables_info, .dataTables_wrapper .dataTables_paginate { color: #94a3b8 !important; margin-top: 15px;}
-        .page-link { background-color: #1e2937; border-color: #334155; color: #38bdf8; font-weight: 600; }
+        .page-link { background-color: #1e2937; border-color: #334155; color: #38bdf8; font-weight: 600; border-radius: 6px; margin: 0 2px;}
         .page-link:hover { background-color: #38bdf8; color: #0f172a; border-color: #38bdf8; }
         .page-item.active .page-link { background-color: #3b82f6; border-color: #3b82f6; color: white; }
-        .page-item.disabled .page-link { background-color: #0f172a; color: #64748b; border-color: #334155; }
+        .page-item.disabled .page-link { background-color: transparent; color: #64748b; border-color: #334155; }
         
         /* -------------------------------------------------------------
-           🚀 AGGRESSIVE GOOGLE TRANSLATE SEAMLESS FIX
+           🚀 AGGRESSIVE GOOGLE TRANSLATE SEAMLESS FIX (KEPT INTACT)
            ------------------------------------------------------------- */
-        /* 1. Prevent body from being pushed down and force standard layout */
         body { 
             top: 0px !important; 
             position: relative !important; 
             min-height: 100vh !important; 
         }
 
-        /* 2. Hide Google's dynamic iframe trackers and tooltips that cause body shifts */
         .goog-te-banner-frame, 
         .goog-te-banner-frame.skiptranslate, 
         #goog-gt-tt, 
@@ -63,15 +103,13 @@
             visibility: hidden !important;
         }
         
-        /* 3. Disable annoying yellow highlights over translated text */
         .goog-text-highlight { 
             background-color: transparent !important; 
             box-shadow: none !important; 
         }
         
-        /* 4. Native styling for the custom dropdown */
         .custom-translate-dropdown {
-            background-color: #0f172a;
+            background-color: rgba(255,255,255,0.05);
             color: #f1f5f9;
             border: 1px solid #334155;
             border-radius: 8px;
@@ -80,10 +118,11 @@
             font-weight: 600;
             outline: none;
             cursor: pointer;
+            backdrop-filter: blur(10px);
             box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
             transition: border-color 0.2s;
         }
-        .custom-translate-dropdown:focus { border-color: #38bdf8; }
+        .custom-translate-dropdown:focus, .custom-translate-dropdown:hover { border-color: #38bdf8; background-color: rgba(255,255,255,0.1); }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -128,7 +167,7 @@
                         <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle" id="bellDot"></span>
                         {% endif %}
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow" style="width: 320px; border: 1px solid #334155;">
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow" style="width: 320px; border: 1px solid #334155; border-radius: 12px; background-color: rgba(30,41,55,0.95); backdrop-filter: blur(10px);">
                         <li><h6 class="dropdown-header border-bottom border-secondary pb-2 fw-bold"><i class="fas fa-bolt me-2 text-warning"></i>Live Alerts Feed</h6></li>
                         {% for alert in recent_alerts %}
                         <li>
@@ -233,6 +272,13 @@
     <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
     <script>
         $(document).ready(function() {
+            // 🚀 4. APPLE FEATURE: Mobile Haptic Feedback on all Buttons!
+            $('.btn, .nav-link').on('click', function() {
+                if (navigator.vibrate) {
+                    navigator.vibrate(40); // Subtle 40ms physical tap on mobile
+                }
+            });
+
             // Monitor for Google's dynamic script shifting the body
             function checkBodyPosition() {
                 if ($('body').css('top') !== '0px') {
