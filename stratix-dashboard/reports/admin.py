@@ -5,16 +5,10 @@ from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
 from .models import Client, Project, UserProfile, Site, Report, SitePhoto, ActivityAlert, SiteIssue
 from django.utils.html import format_html
 
-# ---------------------------------------------------------
-# UI CUSTOMIZATION: Branding the Admin Panel
-# ---------------------------------------------------------
 admin.site.site_header = "Stratix Command Center"
 admin.site.site_title = "Stratix Admin Portal"
 admin.site.index_title = "Global Database Administration"
 
-# ---------------------------------------------------------
-# UI FIX: Searchable Dropdowns for Users & Groups
-# ---------------------------------------------------------
 admin.site.unregister(Group)
 @admin.register(Group)
 class CustomGroupAdmin(BaseGroupAdmin):
@@ -30,14 +24,11 @@ admin.site.unregister(User)
 class CustomUserAdmin(BaseUserAdmin):
     autocomplete_fields = ['groups', 'user_permissions']
 
-# ---------------------------------------------------------
-# INLINES
-# ---------------------------------------------------------
 class SitePhotoInline(admin.TabularInline):
     model = SitePhoto
     extra = 0 
     readonly_fields = ['image_preview', 'uploaded_at']
-    fields = ['image_preview', 'contractor', 'status', 'qa_feedback', 'uploaded_at']
+    fields = ['image_preview', 'category', 'contractor', 'status', 'contractor_notes', 'qa_feedback', 'uploaded_at']
 
     def image_preview(self, obj):
         if obj.image:
@@ -45,9 +36,6 @@ class SitePhotoInline(admin.TabularInline):
         return "-"
     image_preview.short_description = 'Preview'
 
-# ---------------------------------------------------------
-# MODEL ADMINS
-# ---------------------------------------------------------
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
     list_display = ('name',) 
@@ -56,8 +44,8 @@ class ClientAdmin(admin.ModelAdmin):
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ('name', 'client', 'status', 'start_date', 'end_date')
-    list_filter = ('status', 'client')
+    list_display = ('name', 'client', 'require_photo_minimums', 'status', 'start_date', 'end_date')
+    list_filter = ('status', 'client', 'require_photo_minimums')
     search_fields = ('name',)
     ordering = ('-start_date',)
 
@@ -85,9 +73,9 @@ class UserProfileAdmin(admin.ModelAdmin):
 
 @admin.register(SitePhoto)
 class SitePhotoAdmin(admin.ModelAdmin):
-    list_display = ('site', 'contractor', 'status', 'image_thumbnail', 'uploaded_at')
-    list_filter = ('status', 'contractor')
-    search_fields = ('site__site_id', 'qa_feedback')
+    list_display = ('site', 'category', 'contractor', 'status', 'image_thumbnail', 'uploaded_at')
+    list_filter = ('status', 'category', 'contractor')
+    search_fields = ('site__site_id', 'contractor_notes', 'qa_feedback')
     readonly_fields = ('uploaded_at',)
 
     def image_thumbnail(self, obj):
@@ -103,9 +91,6 @@ class SiteIssueAdmin(admin.ModelAdmin):
     search_fields = ('site__site_id', 'description')
     autocomplete_fields = ['site', 'reported_by']
 
-# ---------------------------------------------------------
-# AUDIT LOG PROTECTION
-# ---------------------------------------------------------
 @admin.register(ActivityAlert)
 class ActivityAlertAdmin(admin.ModelAdmin):
     list_display = ('site', 'alert_type', 'user', 'timestamp', 'message')
@@ -117,10 +102,7 @@ class ActivityAlertAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
-        
     def has_change_permission(self, request, obj=None):
         return False
-        
-    # FIX: Allows Superusers to delete alerts so they can successfully cascade delete Sites
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser
