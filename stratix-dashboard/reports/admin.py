@@ -1,11 +1,16 @@
 from django.contrib import admin
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import User, Group, Permission
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 from .models import Client, Project, UserProfile, Site, Report, SitePhoto, ActivityAlert, SiteIssue
 from django.utils.html import format_html
+
+# 🚀 FIX: Re-added the missing Permission registration
+@admin.register(Permission)
+class PermissionAdmin(ModelAdmin):
+    search_fields = ('name', 'codename')
 
 admin.site.unregister(Group)
 @admin.register(Group)
