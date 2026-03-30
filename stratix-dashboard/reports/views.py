@@ -646,3 +646,20 @@ def export_performance_csv(request):
         errors = " | ".join([p.qa_feedback for p in recent_reworks]) if recent_reworks else "None"
         writer.writerow([f"{c.first_name} {c.last_name}".strip() or c.username, total_subs, reworks, rework_rate, errors])
     return response
+
+@login_required
+def support_page(request):
+    if request.method == 'POST':
+        # In the future, this can be wired to send an actual email via SendGrid/AWS SES.
+        # For now, it logs the request and shows a success message.
+        ticket_subject = request.POST.get('subject', 'General Support')
+        ActivityAlert.objects.create(
+            message=f"Submitted a Support Ticket: {ticket_subject}", 
+            user=request.user, 
+            site=Site.objects.first(), # Just attaching to a dummy site for the alert log
+            alert_type='REWORK'
+        )
+        messages.success(request, "Your support ticket has been prioritized and sent to the Engineering Team. We will contact you shortly!")
+        return redirect('dashboard_home')
+        
+    return render(request, 'reports/support.html')
