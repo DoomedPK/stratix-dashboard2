@@ -12,7 +12,8 @@ SECRET_KEY = config('DJANGO_SECRET_KEY', default='django-insecure-stratix-defaul
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DJANGO_DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = ['stratix-dashboard.onrender.com', 'localhost', '127.0.0.1']
+# 🚀 FIX: Added 'stratixjm-dashboard.onrender.com' and '.onrender.com' wildcard
+ALLOWED_HOSTS = ['stratix-dashboard.onrender.com', 'stratixjm-dashboard.onrender.com', '.onrender.com', 'localhost', '127.0.0.1']
 
 # Application definition
 INSTALLED_APPS = [
@@ -131,7 +132,7 @@ else:
         },
     }
 
-# 🚀 ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
 # SUPABASE S3-COMPATIBLE STORAGE CONFIGURATION (Fixes vanishing files)
 # ----------------------------------------------------------------------
 # When debug is False (production), send files to Supabase Storage.
