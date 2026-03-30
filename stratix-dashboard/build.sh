@@ -22,7 +22,7 @@ with connection.cursor() as cursor:
 EOF
 python fix_db.py
 # -------------------------------
-
+cd stratix-dashboard
 # Auto-detect and build new database tables
 python manage.py makemigrations 
 python manage.py migrate
