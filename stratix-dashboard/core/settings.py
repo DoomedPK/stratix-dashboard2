@@ -3,49 +3,37 @@ from pathlib import Path
 from decouple import config
 import dj_database_url
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('DJANGO_SECRET_KEY', default='django-insecure-stratix-default-key-123')
-
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DJANGO_DEBUG', default=False, cast=bool)
 
-# Hosts that are allowed to display the site
 ALLOWED_HOSTS = ['stratix-dashboard.onrender.com', 'stratixjm-dashboard.onrender.com', '.onrender.com', 'localhost', '127.0.0.1']
 
-# Domains trusted to submit forms and passwords
 CSRF_TRUSTED_ORIGINS = [
     'https://stratix-dashboard.onrender.com',
     'https://stratixjm-dashboard.onrender.com',
 ]
 
-# Application definition
 INSTALLED_APPS = [
-    'jazzmin', # 🚀 WE ARE BACK TO JAZZMIN!
+    'jazzmin', 
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
-    # Internal Apps
     'reports',
-    
-    # Third-party
     'corsheaders',
     'rest_framework',
     'channels',
     'crispy_forms',
     'crispy_bootstrap5',
-    'storages', # Required for Supabase S3 Storage
+    'storages',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware', # whitenoise for static
+    'whitenoise.middleware.WhiteNoiseMiddleware', 
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -77,7 +65,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 ASGI_APPLICATION = 'core.asgi.application'
 
-# Database configuration (Supabase PostgreSQL)
 DATABASES = {
     'default': dj_database_url.config(
         default=config('DATABASE_URL', default='sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3')),
@@ -86,7 +73,6 @@ DATABASES = {
     )
 }
 
-# Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -94,18 +80,15 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-# Internationalization
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
-# Use WhiteNoise for static files in production
 if not DEBUG:
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
@@ -118,7 +101,6 @@ LOGOUT_REDIRECT_URL = 'login'
 CORS_ALLOW_ALL_ORIGINS = True
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
-# Redis/Channels Configuration
 REDIS_URL = config('REDIS_URL', default=None)
 if REDIS_URL:
     CHANNEL_LAYERS = {
@@ -132,9 +114,6 @@ else:
         'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'},
     }
 
-# ----------------------------------------------------------------------
-# SUPABASE S3-COMPATIBLE STORAGE CONFIGURATION
-# ----------------------------------------------------------------------
 if not DEBUG:
     SUPABASE_PROJECT_REF = config('SUPABASE_PROJECT_REF', default='')
     SUPABASE_ANON_KEY = config('SUPABASE_ANON_KEY', default='')
@@ -159,10 +138,21 @@ else:
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # ----------------------------------------------------------------------
-# 🚀 STRATIX CUSTOM JAZZMIN ADMIN UI CONFIGURATION
+# 🚀 NEW: EMAIL SMTP CONFIGURATION (Gmail)
+# ----------------------------------------------------------------------
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+# Fetches credentials safely from Render environment
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='stratixconstruction@gmail.com')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# ----------------------------------------------------------------------
+# JAZZMIN ADMIN UI CONFIGURATION
 # ----------------------------------------------------------------------
 JAZZMIN_SETTINGS = {
-    # Titles & Logos
     "site_title": "Stratix Admin",
     "site_header": "Stratix Command",
     "site_brand": "STRATIX",
@@ -171,12 +161,10 @@ JAZZMIN_SETTINGS = {
     "site_logo_classes": "img-circle",
     "site_icon": "images/stratix-logo.png",
     
-    # Welcome Text
     "welcome_sign": "Secure Command Center Authentication",
     "copyright": "Stratix Global Deployment Solutions",
-    "search_model": ["reports.Site", "auth.User", "reports.Project"],
+    "search_model": ["reports.Site", "auth.User", "reports.SupportTicket"],
     
-    # 🚀 Top Navbar & Custom User Icon
     "user_avatar": None, 
     "topmenu_links": [
         {"name": "Home",  "url": "admin:index", "permissions": ["auth.view_user"]},
@@ -184,17 +172,15 @@ JAZZMIN_SETTINGS = {
         {"name": "Global Map Tracker", "url": "global_map", "icon": "fas fa-globe"}
     ],
     "usermenu_links": [
-        {"name": "Stratix Support", "url": "/support/", "icon": "fas fa-headset"}, # 🚀 Updated URL here!
+        {"name": "Stratix Support", "url": "/support/", "icon": "fas fa-headset"},
         {"model": "auth.user"}
     ],
     
-    # Sidebar Config
     "show_sidebar": True,
     "navigation_expanded": True,
     "hide_apps": [],
     "hide_models": [],
     
-    # 🚀 Custom Dashboard Widgets (Adds quick-links directly into the app list)
     "custom_links": {
         "reports": [{
             "name": "Live Contractor Map", 
@@ -203,24 +189,23 @@ JAZZMIN_SETTINGS = {
         }]
     },
 
-    # 🚀 Menu Reordering (Puts the most important things at the top!)
     "order_with_respect_to": [
         "reports", 
         "reports.Project", 
         "reports.Site", 
         "reports.Report", 
         "reports.SitePhoto", 
-        "reports.SiteIssue", 
+        "reports.SiteIssue",
+        "reports.SupportTicket", # 🚀 Injects the new table into the menu order
         "reports.ActivityAlert", 
         "reports.Client", 
         "reports.UserProfile",
         "auth"
     ],
     
-    # 🚀 Custom Icons for every model
     "icons": {
         "auth": "fas fa-users-cog",
-        "auth.user": "fas fa-user-shield", # Cooler user icon
+        "auth.user": "fas fa-user-shield", 
         "auth.Group": "fas fa-users",
         "reports.Client": "fas fa-building",
         "reports.Project": "fas fa-project-diagram",
@@ -230,32 +215,29 @@ JAZZMIN_SETTINGS = {
         "reports.ActivityAlert": "fas fa-bell text-warning",
         "reports.UserProfile": "fas fa-id-card",
         "reports.SiteIssue": "fas fa-exclamation-triangle text-danger",
+        "reports.SupportTicket": "fas fa-ticket-alt text-success", # 🚀 Icon for Support Tickets
     },
     
     "default_icon_parents": "fas fa-chevron-circle-right",
     "default_icon_children": "fas fa-circle",
     "related_modal_active": True,
     
-    # 🚀 INJECT CUSTOM CSS FOR LOGIN SCREEN
     "custom_css": "css/stratix_admin.css", 
     "custom_js": None,
     "show_ui_builder": False,
 }
 
 JAZZMIN_UI_TWEAKS = {
-    # 🚀 CUSTOM STRATIX YELLOW/BLACK THEME
     "navbar_small_text": False,
     "footer_small_text": False,
     "body_small_text": False,
     "brand_small_text": False,
     
-    # Colors
-    "brand_colour": "navbar-warning",     # Stratix Yellow top-left logo background
-    "accent": "accent-warning",           # Yellow links and focus states
+    "brand_colour": "navbar-warning",     
+    "accent": "accent-warning",           
     "navbar": "navbar-dark",
-    "sidebar": "sidebar-dark-warning",    # Dark sidebar with Yellow active items
+    "sidebar": "sidebar-dark-warning",    
     
-    # Layout
     "no_navbar_border": True,
     "navbar_fixed": True,
     "layout_boxed": False,
@@ -268,11 +250,9 @@ JAZZMIN_UI_TWEAKS = {
     "sidebar_nav_legacy_style": False,
     "sidebar_nav_flat_style": True,
     
-    # Base Theme (Cyborg is the deepest black Bootswatch theme)
     "theme": "cyborg", 
     "dark_mode_theme": "cyborg",
     
-    # 🚀 Button Customization (Make default save buttons yellow)
     "button_classes": {
         "primary": "btn-warning fw-bold text-dark", 
         "secondary": "btn-secondary",
