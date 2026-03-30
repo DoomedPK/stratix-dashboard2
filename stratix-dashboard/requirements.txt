@@ -5,12 +5,12 @@ channels==4.1.0
 channels-redis==4.2.0
 daphne==4.1.2
 dj-database-url==2.1.0
-Django==5.0.8    # 🚀 FIX: Downgraded to 5.0.8 for full Jazzmin UI compatibility
+Django==5.1.4          # 🚀 Kept at the secure, latest version!
 django-cors-headers==4.6.0
 django-crispy-forms==2.3
 crispy-bootstrap5==2024.2
 django-storages==1.14.4
-django-jazzmin==3.0.1
+django-unfold==0.42.0  # 🚀 FIX: Replaced broken jazzmin with unfold!
 djangorestframework==3.15.2
 gunicorn==22.0.0
 pillow==11.0.0
