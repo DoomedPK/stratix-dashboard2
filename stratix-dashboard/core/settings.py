@@ -12,7 +12,14 @@ SECRET_KEY = config('DJANGO_SECRET_KEY', default='django-insecure-stratix-defaul
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DJANGO_DEBUG', default=False, cast=bool)
 
+# Hosts that are allowed to display the site
 ALLOWED_HOSTS = ['stratix-dashboard.onrender.com', 'stratixjm-dashboard.onrender.com', '.onrender.com', 'localhost', '127.0.0.1']
+
+# 🚀 FIX: Domains trusted to submit forms and passwords
+CSRF_TRUSTED_ORIGINS = [
+    'https://stratix-dashboard.onrender.com',
+    'https://stratixjm-dashboard.onrender.com',
+]
 
 # Application definition
 INSTALLED_APPS = [
@@ -59,7 +66,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'reports.context_processors.live_alerts', # 🚀 FIX: Corrected the name to match your file
+                'reports.context_processors.live_alerts', 
             ],
         },
     },
