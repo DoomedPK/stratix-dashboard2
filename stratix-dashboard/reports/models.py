@@ -1,9 +1,10 @@
 from django.db import models
 from django.contrib.auth.models import User, Group
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+import os
 
 class Client(models.Model):
     name = models.CharField(max_length=200, unique=True)
@@ -20,7 +21,6 @@ class Project(models.Model):
     end_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=[('Active', 'Active'), ('Completed', 'Completed')], default='Active')
     
-    # 🚀 FIX 2: Admin Toggle for Minimum Photo Requirements
     require_photo_minimums = models.BooleanField(default=False, help_text="Enforce minimum photo counts per category for contractors.")
 
     def __str__(self):
@@ -73,13 +73,11 @@ class Report(models.Model):
     def __str__(self):
         return f"Report for {self.site.site_id}"
 
-class Photo(models.Model):
-    report = models.ForeignKey(Report, on_delete=models.CASCADE, related_name='photos')
-    image = models.ImageField(upload_to='site_photos/')
-    caption = models.CharField(max_length=255, blank=True)
-
-    def __str__(self):
-        return f"Photo for {self.report.site.site_id}"
+# 🚀 FIX: Automatic Cleanup for Report PDFs
+@receiver(pre_delete, sender=Report)
+def delete_report_file(sender, instance, **kwargs):
+    if instance.final_document:
+        instance.final_document.delete(save=False)
 
 class SitePhoto(models.Model):
     STATUS_CHOICES = [
@@ -106,7 +104,6 @@ class SitePhoto(models.Model):
     contractor = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'groups__name': 'Contractors'})
     image = models.ImageField(upload_to='site_photos/%Y/%m/%d/')
     
-    # 🚀 FIX 2 & 3: New Categories & Contractor Notes Separated from QA Feedback
     category = models.CharField(max_length=100, choices=CATEGORY_CHOICES, default='Site Overview')
     contractor_notes = models.TextField(blank=True, null=True, help_text="Notes from the contractor.")
     
@@ -116,6 +113,12 @@ class SitePhoto(models.Model):
 
     def __str__(self):
         return f"Photo for {self.site.site_id} by {self.contractor.username} - {self.status}"
+
+# 🚀 FIX: Automatic Cleanup for Site Photos (Supabase cleanup)
+@receiver(pre_delete, sender=SitePhoto)
+def delete_photo_image(sender, instance, **kwargs):
+    if instance.image:
+        instance.image.delete(save=False)
 
 class ActivityAlert(models.Model):
     message = models.CharField(max_length=255)
