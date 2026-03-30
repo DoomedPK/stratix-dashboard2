@@ -12,6 +12,9 @@ from django.contrib import messages
 from .models import Site, SitePhoto, Report, ActivityAlert, Project, SiteIssue, Client
 from django.utils.timezone import now
 from django.urls import reverse
+from django.core.mail import send_mail
+from django.conf import settings
+from .models import SupportTicket
 
 # --- CATEGORY MINIMUMS ---
 PHOTO_MINIMUMS = {
@@ -650,15 +653,51 @@ def export_performance_csv(request):
 @login_required
 def support_page(request):
     if request.method == 'POST':
-        # In the future, this can be wired to send an actual email via SendGrid/AWS SES.
-        # For now, it logs the request and shows a success message.
         ticket_subject = request.POST.get('subject', 'General Support')
+        description = request.POST.get('description', 'No description provided.')
+        
+        # 1. Save to the actual Database Table
+        ticket = SupportTicket.objects.create(
+            user=request.user,
+            subject=ticket_subject,
+            description=description,
+            status='Pending'
+        )
+        
+        # 2. Trigger the Admin Dashboard Live Alert Ping
         ActivityAlert.objects.create(
-            message=f"Submitted a Support Ticket: {ticket_subject}", 
+            message=f"New Support Ticket #{ticket.id} Submitted: {ticket_subject}", 
             user=request.user, 
-            site=Site.objects.first(), # Just attaching to a dummy site for the alert log
+            site=Site.objects.first(), 
             alert_type='REWORK'
         )
+
+        # 3. Fire off the actual email to stratixconstruction@gmail.com
+        try:
+            email_message = f"""
+New Support Ticket #{ticket.id}
+
+Submitted By: {request.user.get_full_name()} ({request.user.username})
+Role: {request.user.profile.get_role_display()}
+
+Subject: {ticket_subject}
+
+Description:
+{description}
+
+---
+Please log into the Stratix Command Center admin panel to view and resolve this ticket.
+"""
+            send_mail(
+                subject=f"[STRATIX ALERT] Support Ticket #{ticket.id}: {ticket_subject}",
+                message=email_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=['stratixconstruction@gmail.com'],
+                fail_silently=True,
+            )
+        except Exception as e:
+            print(f"SMTP Error: Could not send email. {str(e)}")
+
         messages.success(request, "Your support ticket has been prioritized and sent to the Engineering Team. We will contact you shortly!")
         return redirect('dashboard_home')
         
