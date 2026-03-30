@@ -2,6 +2,10 @@
 # exit on error
 set -o errexit
 
+# Tell Render to step inside the correct folder where the code lives
+cd stratix-dashboard
+
+# Install dependencies and gather static files
 pip install -r requirements.txt
 python manage.py collectstatic --no-input
 
@@ -22,7 +26,7 @@ with connection.cursor() as cursor:
 EOF
 python fix_db.py
 # -------------------------------
-cd stratix-dashboard
+
 # Auto-detect and build new database tables
 python manage.py makemigrations 
 python manage.py migrate
