@@ -266,7 +266,13 @@ JAZZMIN_UI_TWEAKS = {
 # ----------------------------------------------------------------------
 # 🚀 ENTERPRISE PRODUCTION SECURITY HEADERS
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# 🚀 ENTERPRISE PRODUCTION SECURITY HEADERS
+# ----------------------------------------------------------------------
 if not DEBUG:
+    # 🚀 THE FIX: Tells Django to trust Render's HTTPS proxy
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_SSL_REDIRECT = True
