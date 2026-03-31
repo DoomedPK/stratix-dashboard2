@@ -31,6 +31,23 @@ PHOTO_MINIMUMS = {
     'Additional Observations': 0,
 }
 
+# --- HELPER FUNCTIONS ---
+def get_site_map_status(site):
+    """Helper function to calculate map colors to prevent duplicated code."""
+    issues = site.issues.filter(is_resolved=False)
+    if issues.filter(severity='Critical').exists():
+        return 'Critical Issue', '#ef4444' 
+    elif issues.filter(severity='Major').exists():
+        return 'Major Issue', '#f97316' 
+    elif issues.filter(severity='Minor').exists():
+        return 'Minor Issue', '#eab308' 
+    
+    report = site.reports.first()
+    if report and report.status == 'submitted':
+        return 'Completed (Good Condition)', '#10b981' 
+    
+    return 'In Progress', '#3b82f6'
+
 @login_required
 def dashboard_home(request):
     user = request.user
