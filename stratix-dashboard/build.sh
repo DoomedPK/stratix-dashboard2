@@ -27,8 +27,8 @@ EOF
 python fix_db.py
 # -------------------------------
 
-# Auto-detect and build new database tables
-python manage.py makemigrations 
+# 🚀 FIX: Explicitly target the 'reports' app so Django is forced to build the SupportTicket table!
+python manage.py makemigrations reports
 python manage.py migrate
 
 python create_admin.py
