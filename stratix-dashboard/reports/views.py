@@ -126,62 +126,91 @@ def dashboard_home(request):
                 'color': color
             })
 
+    # 🚀 OPTIMIZATION FIX 1: N+1 Turnaround Time Calculation
+    # Fetch all submitted reports at once
+    submitted_reports = list(reports.filter(status='submitted').only('site_id', 'submitted_at'))
+    sub_site_ids = [r.site_id for r in submitted_reports]
+    
+    # Fetch all their final alerts in ONE query instead of a loop
+    all_final_alerts = ActivityAlert.objects.filter(
+        site_id__in=sub_site_ids, alert_type='UPLOAD', message__icontains='Final'
+    ).order_by('-timestamp').only('site_id', 'timestamp')
+    
+    latest_alerts_map = {}
+    for alert in all_final_alerts:
+        if alert.site_id not in latest_alerts_map:
+            latest_alerts_map[alert.site_id] = alert.timestamp
+
     total_tat_days = 0
     tat_count = 0
-    for r in reports.filter(status='submitted'):
-        final_alert = ActivityAlert.objects.filter(site=r.site, alert_type='UPLOAD', message__icontains='Final').order_by('-timestamp').first()
-        if final_alert:
-            delta = final_alert.timestamp - r.submitted_at
+    for r in submitted_reports:
+        if r.site_id in latest_alerts_map and r.submitted_at:
+            delta = latest_alerts_map[r.site_id] - r.submitted_at
             total_tat_days += delta.days
             tat_count += 1
     avg_tat = round(total_tat_days / tat_count, 1) if tat_count > 0 else 0
 
+    # 🚀 OPTIMIZATION FIX 2: N+1 Trend Loop
     trend_labels = []
     tat_trend = []
     rework_trend = []
     current_date = now().date()
     
+    # Pre-fetch all photos to avoid DB queries inside the 6-month loop
+    all_photos = list(SitePhoto.objects.filter(site__in=sites).only('site_id', 'status', 'qa_feedback', 'uploaded_at'))
+
     for i in range(5, -1, -1):
         target_month = (current_date.month - i - 1) % 12 + 1
         target_year = current_date.year + ((current_date.month - i - 1) // 12)
         month_label = datetime.date(target_year, target_month, 1).strftime('%b %Y')
         trend_labels.append(month_label)
         
-        m_reports = reports.filter(status='submitted')
         m_total_tat = 0
         m_tat_count = 0
-        for r in m_reports:
-            final_alert = ActivityAlert.objects.filter(site=r.site, alert_type='UPLOAD', message__icontains='Final', timestamp__year=target_year, timestamp__month=target_month).order_by('-timestamp').first()
-            if final_alert and hasattr(r, 'submitted_at') and r.submitted_at:
-                delta = final_alert.timestamp - r.submitted_at
+        for r in submitted_reports:
+            alert_time = latest_alerts_map.get(r.site_id)
+            if alert_time and alert_time.year == target_year and alert_time.month == target_month and r.submitted_at:
+                delta = alert_time - r.submitted_at
                 m_total_tat += delta.days
                 m_tat_count += 1
         tat_trend.append(round(m_total_tat / m_tat_count, 1) if m_tat_count > 0 else 0)
         
-        m_photos = SitePhoto.objects.filter(site__in=sites, uploaded_at__year=target_year, uploaded_at__month=target_month)
-        m_total_subs = m_photos.count()
-        m_reworks = m_photos.filter(Q(status='REJECTED') | Q(qa_feedback__icontains='Rework')).count()
+        # Perform rework math in native Python instantly
+        m_photos = [p for p in all_photos if p.uploaded_at.year == target_year and p.uploaded_at.month == target_month]
+        m_total_subs = len(m_photos)
+        m_reworks = sum(1 for p in m_photos if p.status == 'REJECTED' or (p.qa_feedback and 'Rework' in p.qa_feedback))
         rework_trend.append(round((m_reworks / m_total_subs * 100), 1) if m_total_subs > 0 else 0)
     
+    # 🚀 OPTIMIZATION FIX 3: N+1 Contractor Stats
     contractor_stats = []
     is_client_or_admin = user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'Client'])
     is_contractor = hasattr(user, 'profile') and user.profile.role == 'Contractor'
     
     if is_client_or_admin:
-        contractors_to_track = User.objects.filter(assigned_sites__in=sites).distinct()
+        contractors_to_track = list(User.objects.filter(assigned_sites__in=sites).distinct())
     elif is_contractor:
-        contractors_to_track = User.objects.filter(id=user.id)
+        contractors_to_track = [user]
     else:
         contractors_to_track = []
 
+    c_ids_to_track = [c.id for c in contractors_to_track]
+    
+    # Fetch all photos for contractors in ONE query
+    contractor_photos = SitePhoto.objects.filter(contractor_id__in=c_ids_to_track, site__in=sites).order_by('-uploaded_at')
+    
+    photo_map = {c.id: [] for c in contractors_to_track}
+    for p in contractor_photos:
+        photo_map[p.contractor_id].append(p)
+
     for c in contractors_to_track:
-        c_photos = SitePhoto.objects.filter(contractor=c, site__in=sites)
-        total_subs = c_photos.count()
-        reworks = c_photos.filter(Q(status='REJECTED') | Q(qa_feedback__icontains='Rework')).count()
+        c_photos = photo_map.get(c.id, [])
+        total_subs = len(c_photos)
+        rework_photos = [p for p in c_photos if p.status == 'REJECTED' or (p.qa_feedback and 'Rework' in p.qa_feedback)]
+        reworks = len(rework_photos)
         rework_rate = round((reworks / total_subs * 100), 1) if total_subs > 0 else 0
         
-        recent_reworks = c_photos.filter(Q(status='REJECTED') | Q(qa_feedback__icontains='Rework')).exclude(qa_feedback__isnull=True).exclude(qa_feedback='').order_by('-uploaded_at')[:2]
-        common_errors = [p.qa_feedback for p in recent_reworks] if recent_reworks else ["No frequent errors detected."]
+        recent_reworks = [p.qa_feedback for p in rework_photos if p.qa_feedback][:2]
+        common_errors = recent_reworks if recent_reworks else ["No frequent errors detected."]
 
         contractor_stats.append({
             'id': c.id,
@@ -550,7 +579,7 @@ def custom_logout(request):
 
 @login_required
 def api_check_alerts(request):
-    # 🚀 RATE LIMITING FIX: Prevents polling abuse from crashing your DB
+    # RATE LIMITING FIX: Prevents polling abuse from crashing your DB
     current_time = time.time()
     last_request = request.session.get('last_api_request', 0)
     if current_time - last_request < 2:  # Rejects requests faster than 1 every 2 seconds
