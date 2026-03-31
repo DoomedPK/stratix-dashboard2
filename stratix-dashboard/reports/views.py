@@ -2,6 +2,7 @@ import json
 import csv
 import io
 import datetime
+import time
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -15,6 +16,7 @@ from django.urls import reverse
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import SupportTicket
+from django.views.decorators.http import require_POST
 
 # --- CATEGORY MINIMUMS ---
 PHOTO_MINIMUMS = {
@@ -113,24 +115,7 @@ def dashboard_home(request):
     sites_data = []
     for site in sites:
         if site.latitude and site.longitude:
-            issues = site.issues.filter(is_resolved=False)
-            if issues.filter(severity='Critical').exists():
-                site_status = 'Critical Issue'
-                color = '#ef4444' 
-            elif issues.filter(severity='Major').exists():
-                site_status = 'Major Issue'
-                color = '#f97316' 
-            elif issues.filter(severity='Minor').exists():
-                site_status = 'Minor Issue'
-                color = '#eab308' 
-            else:
-                report = Report.objects.filter(site=site).first()
-                if report and report.status == 'submitted':
-                    site_status = 'Completed (Good Condition)'
-                    color = '#10b981' 
-                else:
-                    site_status = 'In Progress'
-                    color = '#3b82f6' 
+            site_status, color = get_site_map_status(site) 
                     
             sites_data.append({
                 'name': site.site_id,
@@ -348,12 +333,10 @@ def site_issues_list(request):
     return render(request, 'reports/site_issues.html', {'issues': issues, 'projects': projects})
 
 
-# 🚀 FIX 1 & 2: Pre-selected site upload flow & Categories
 @login_required
 def upload_photos(request):
     user = request.user
     
-    # Pre-select site from URL or POST
     site_id = request.GET.get('site_id') or request.POST.get('site_id')
     selected_site = get_object_or_404(Site, id=site_id) if site_id else None
 
@@ -389,7 +372,6 @@ def finish_upload(request, site_id):
     site = get_object_or_404(Site, id=site_id)
     if request.method == 'POST':
         
-        # 🚀 FIX 2: Check Photo Minimums if Admin enabled it
         if site.project.require_photo_minimums:
             missing = []
             for cat, min_count in PHOTO_MINIMUMS.items():
@@ -404,7 +386,7 @@ def finish_upload(request, site_id):
         
         report = site.reports.first()
         if report and report.status == 'visit_in_progress':
-            report.status = 'qa_validation' # Sends it to QA
+            report.status = 'qa_validation' 
             report.save()
             ActivityAlert.objects.create(message=f"Contractor finished uploading photos for QA validation.", user=request.user, site=site, alert_type='UPLOAD')
             messages.success(request, "Uploads completed and sent to QA for validation!")
@@ -412,12 +394,12 @@ def finish_upload(request, site_id):
     return redirect('site_visit_list')
 
 @login_required
+@require_POST
 def start_visit(request, report_id):
     report = get_object_or_404(Report, id=report_id)
     report.status = 'visit_in_progress'
     report.save()
     ActivityAlert.objects.create(message=f"Contractor has arrived on site.", user=request.user, site=report.site, alert_type='CHECK_IN')
-    # 🚀 FIX 1: Auto-redirect straight into the upload hub with the site selected!
     return redirect(f"{reverse('upload_photos')}?site_id={report.site.id}")
 
 @login_required
@@ -468,7 +450,6 @@ def qa_review(request, site_id):
         return redirect('dashboard_home')
 
     site = get_object_or_404(Site, id=site_id)
-    # Grouping logic handled in the template now!
     pending_photos = SitePhoto.objects.filter(site=site, status='PENDING').order_by('category')
 
     if request.method == 'POST':
@@ -512,7 +493,6 @@ def approve_report(request, report_id):
         messages.success(request, "Report Approved and Delivered!")
     return redirect('qa_hub')
 
-# 🚀 FIX 6: QA Decline Final Report
 @login_required
 def decline_report(request, report_id):
     user = request.user
@@ -522,8 +502,8 @@ def decline_report(request, report_id):
     report = get_object_or_404(Report, id=report_id)
     if request.method == 'POST':
         reason = request.POST.get('reason', 'No reason provided.')
-        report.status = 'site_data_submitted' # Kicks it back to Tech Writer
-        report.final_document = None # Clears the bad PDF
+        report.status = 'site_data_submitted' 
+        report.final_document = None 
         report.comments = f"DECLINED BY QA: {reason} | Previous Notes: {report.comments}"
         report.save()
         ActivityAlert.objects.create(message="QA declined the drafted report.", user=user, site=report.site, alert_type='REWORK')
@@ -570,6 +550,13 @@ def custom_logout(request):
 
 @login_required
 def api_check_alerts(request):
+    # 🚀 RATE LIMITING FIX: Prevents polling abuse from crashing your DB
+    current_time = time.time()
+    last_request = request.session.get('last_api_request', 0)
+    if current_time - last_request < 2:  # Rejects requests faster than 1 every 2 seconds
+        return JsonResponse({'new_alerts': [], 'error': 'Rate limit exceeded'}, status=429)
+    request.session['last_api_request'] = current_time
+
     user = request.user
     last_check_str = request.session.get('last_alert_check')
     
@@ -606,24 +593,7 @@ def geographical_map_view(request):
     sites_data = []
     for site in sites:
         if site.latitude and site.longitude:
-            issues = site.issues.filter(is_resolved=False)
-            if issues.filter(severity='Critical').exists():
-                site_status = 'Critical Issue'
-                color = '#ef4444' 
-            elif issues.filter(severity='Major').exists():
-                site_status = 'Major Issue'
-                color = '#f97316' 
-            elif issues.filter(severity='Minor').exists():
-                site_status = 'Minor Issue'
-                color = '#eab308' 
-            else:
-                report = Report.objects.filter(site=site).first()
-                if report and report.status == 'submitted':
-                    site_status = 'Completed (Good Condition)'
-                    color = '#10b981' 
-                else:
-                    site_status = 'In Progress'
-                    color = '#3b82f6' 
+            site_status, color = get_site_map_status(site)
                     
             sites_data.append({
                 'name': site.site_id,
