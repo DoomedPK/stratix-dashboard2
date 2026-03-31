@@ -8,6 +8,7 @@
     
     <link rel="manifest" href="{% url 'manifest' %}">
     <meta name="theme-color" content="#0f172a">
+    
     <link rel="apple-touch-icon" href="{% static 'images/stratix-logo.png' %}">
     <link rel="icon" type="image/png" href="{% static 'images/stratix-logo.png' %}">
 
@@ -20,7 +21,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css" />
 
     <style>
-        /* 🚀 APPLE SYSTEM FONT & SMOOTH FADE-IN */
+        /* APPLE SYSTEM FONT & SMOOTH FADE-IN */
         body { 
             background-color: #0f172a; 
             color: #f1f5f9; 
@@ -36,7 +37,7 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* 🚀 MAC OS CUSTOM SCROLLBARS */
+        /* MAC OS CUSTOM SCROLLBARS */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -60,7 +61,7 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.08); 
         }
 
-        /* 🚀 FLUID CARD LIFT EFFECTS (Apple Depth) */
+        /* FLUID CARD LIFT EFFECTS (Apple Depth) */
         .card { 
             background-color: #1e2937; 
             border: 1px solid #334155; 
@@ -166,12 +167,6 @@
                     <div id="google_translate_element" style="display:none;"></div>
                 </div>
 
-                 <div class="me-4 mt-1">
-                    <a href="{% url 'support_page' %}" class="text-warning text-decoration-none" title="Stratix Support" style="transition: transform 0.2s;">
-                        <i class="fas fa-headset fs-5"></i>
-                    </a>
-                 </div>
-
                  <div class="dropdown me-4">
                     <button class="btn btn-dark position-relative border-0 bg-transparent p-0 mt-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="bellIconBtn">
                         <i class="fas fa-bell fs-5 text-warning"></i>
@@ -198,9 +193,29 @@
                     </ul>
                 </div>
 
-                 <div class="text-light fw-semibold border-start border-secondary ps-4">
-                     <i class="fas fa-hand-wave text-warning me-1"></i> <span id="dynamic-greeting">Hello</span>, {{ user.first_name|default:user.username|title }}
-                 </div>
+                <div class="dropdown ms-3 ps-3 border-start border-secondary d-flex align-items-center">
+                    <button class="btn btn-transparent p-0 border-0 d-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="outline:none; box-shadow:none;">
+                        <div class="text-end d-none d-sm-block me-3 lh-1">
+                            <div class="text-light fw-bold" style="font-size: 0.95rem;"><span id="dynamic-greeting">Hello</span>, {{ user.first_name|default:user.username|title }}</div>
+                            <div class="text-warning text-uppercase mt-1" style="font-size: 0.70rem; font-weight: 800; letter-spacing: 0.5px;">{{ user.profile.get_role_display }}</div>
+                        </div>
+                        <div class="bg-secondary bg-opacity-25 rounded-circle d-flex justify-content-center align-items-center" style="width: 42px; height: 42px; border: 1px solid #334155;">
+                            <i class="fas fa-user fs-5 text-light"></i>
+                        </div>
+                        <i class="fas fa-chevron-down ms-2 text-muted" style="font-size: 0.75rem;"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow-lg mt-3" style="width: 240px; border: 1px solid #334155; border-radius: 12px; background-color: rgba(30,41,55,0.95); backdrop-filter: blur(16px);">
+                        <li><div class="dropdown-item-text pb-3 border-bottom border-secondary border-opacity-25">
+                            <div class="fw-bold text-white fs-6">{{ user.first_name|default:user.username|title }} {{ user.last_name }}</div>
+                            <div class="text-muted small">{{ user.email|default:"No email attached" }}</div>
+                        </div></li>
+                        <li><a class="dropdown-item py-2 mt-2 text-white" href="{% url 'dashboard_home' %}"><i class="fas fa-chart-line me-2 text-info"></i> Dashboard</a></li>
+                        <li><a class="dropdown-item py-2 text-white" href="{% url 'support_page' %}"><i class="fas fa-headset me-2 text-warning"></i> Stratix Support</a></li>
+                        <li><hr class="dropdown-divider border-secondary border-opacity-50"></li>
+                        <li><a class="dropdown-item py-2 text-danger fw-bold" href="{% url 'logout' %}"><i class="fas fa-sign-out-alt me-2"></i> Secure Logout</a></li>
+                    </ul>
+                </div>
+
             </div>
         </div>
     </nav>
@@ -257,7 +272,7 @@
                 <li class="nav-item mt-3 border-top border-secondary pt-3"><a class="nav-link text-danger py-2 px-3" href="{% url 'admin:index' %}"><i class="fas fa-user-shield me-3"></i> Admin Panel</a></li>
                 {% endif %}
             </ul>
-            <a href="{% url 'logout' %}" class="btn btn-danger mt-auto py-2 fw-semibold"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
+            <a href="{% url 'logout' %}" class="btn btn-danger mt-auto flex-shrink-0 py-2 fw-semibold rounded-3"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
         </div>
     </div>
 
@@ -284,7 +299,7 @@
     <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
     <script>
         $(document).ready(function() {
-            // 🚀 DYNAMIC TIME GREETING SCRIPT
+            // DYNAMIC TIME GREETING SCRIPT
             function updateGreeting() {
                 var hour = new Date().getHours();
                 var greetingText = "Hello";
