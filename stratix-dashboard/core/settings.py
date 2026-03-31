@@ -162,7 +162,7 @@ JAZZMIN_SETTINGS = {
     "site_icon": "images/stratix-logo.png",
     
     "welcome_sign": "Secure Command Center Authentication",
-    "copyright": "Stratix Global Deployment Solutions",
+    "copyright": "Stratix Group Limited",
     "search_model": ["reports.Site", "auth.User", "reports.SupportTicket"],
     
     "user_avatar": None, 
