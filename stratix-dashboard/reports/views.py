@@ -698,7 +698,7 @@ Please log into the Stratix Command Center admin panel to view and resolve this 
         except Exception as e:
             print(f"SMTP Error: Could not send email. {str(e)}")
 
-        messages.success(request, "Your support ticket has been prioritized and sent to the Engineering Team. We will contact you shortly!")
+        messages.success(request, "Your support ticket has been prioritized and sent to the Support Team. We will contact you shortly!")
         return redirect('dashboard_home')
         
     return render(request, 'reports/support.html')
