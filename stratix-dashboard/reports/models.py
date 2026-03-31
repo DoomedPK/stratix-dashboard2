@@ -65,7 +65,7 @@ class Report(models.Model):
         ('visit_in_progress', 'Visit In Progress'),
         ('qa_validation', 'QA Validation'),
         ('site_data_submitted', 'Site Data Submitted'),
-        ('engineer_review', 'Engineer Review'),
+        ('engineer_review', 'Report in Progress'),
         ('submitted', 'Submitted'),
     ]
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='not_visited')
