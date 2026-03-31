@@ -83,7 +83,7 @@ def dashboard_home(request):
         reports.filter(status='submitted').count(),
     ]
 
-    status_labels = ['Not Visited', 'Visit In Progress', 'Site Data Submitted', 'QA Validation', 'Engineer Review', 'Completed/Delivered']
+    status_labels = ['Not Visited', 'Visit In Progress', 'Site Data Submitted', 'QA Validation', 'Report in Progress', 'Completed/Delivered']
     status_colors = ['#64748b', '#f59e0b', '#0ea5e9', '#f97316', '#8b5cf6', '#10b981']
     status_data = [{'count': chart_data[i], 'label': status_labels[i], 'color': status_colors[i]} for i in range(6)]
 
