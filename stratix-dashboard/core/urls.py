@@ -10,6 +10,12 @@ urlpatterns = [
     path('', include('reports.urls')),
     path('accounts/', include('django.contrib.auth.urls')),
     path('logout/', custom_logout, name='logout'),
+    # 🚀 CUSTOM INTERCEPT FOR BRANDED PASSWORD RESET EMAIL
+    path('accounts/password_reset/', auth_views.PasswordResetView.as_view(
+        html_email_template_name='registration/password_reset_email_html.html',
+        email_template_name='registration/password_reset_email.txt',
+        subject_template_name='registration/password_reset_subject.txt'
+    ), name='password_reset'),
     
     # This securely serves images on Render's disk even when DEBUG=False
     re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
