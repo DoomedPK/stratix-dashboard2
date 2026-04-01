@@ -77,12 +77,21 @@
         
         .text-muted { color: #94a3b8 !important; }
         
-        /* iOS FROSTED GLASS SIDE MENU */
+        /* 🚀 iOS FROSTED GLASS SIDE MENU - DESKTOP FIX */
         .offcanvas { 
             background-color: rgba(15, 23, 42, 0.85) !important; 
             backdrop-filter: blur(20px); 
             -webkit-backdrop-filter: blur(20px);
             border-right: 1px solid rgba(255, 255, 255, 0.08); 
+            position: fixed !important; /* 🚀 Forces the menu to never scroll up on desktop */
+            top: 0;
+            bottom: 0;
+            height: 100dvh !important; 
+        }
+
+        /* 🚀 Ensures the bottom padding respects mobile devices */
+        .offcanvas-body {
+            padding-bottom: max(1.5rem, env(safe-area-inset-bottom)) !important;
         }
         
         .stratix-text { color: #ffffff !important; font-weight: 900; letter-spacing: -1px; }
@@ -137,7 +146,7 @@
         }
         .custom-translate-dropdown:focus, .custom-translate-dropdown:hover { border-color: #38bdf8; background-color: rgba(255,255,255,0.1); }
         
-        /* 🚀 MOBILE SCALING: Shrinks elements gracefully instead of hiding them */
+        /* Responsive tweaks for mobile navbar */
         @media (max-width: 768px) {
             .navbar .container-fluid { padding-left: 5px !important; padding-right: 5px !important; }
             .stratix-text { font-size: 1.1rem !important; letter-spacing: 0px; }
