@@ -129,6 +129,8 @@ if not DEBUG:
         AWS_S3_CUSTOM_DOMAIN = f'{SUPABASE_PROJECT_REF}.supabase.co/storage/v1/object/public/{SUPABASE_STORAGE_BUCKET_NAME}'
         AWS_S3_USE_SSL = True
 
+        AWS_QUERYSTRING_AUTH = False
+
         DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
         MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
 else:
@@ -142,7 +144,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='stratixconstruction@gmail.com')
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='clientrelations@stratixjm.com')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
