@@ -136,6 +136,26 @@
             transition: all 0.2s;
         }
         .custom-translate-dropdown:focus, .custom-translate-dropdown:hover { border-color: #38bdf8; background-color: rgba(255,255,255,0.1); }
+        
+        /* 🚀 MOBILE SCALING: Shrinks elements gracefully instead of hiding them */
+        @media (max-width: 768px) {
+            .navbar .container-fluid { padding-left: 5px !important; padding-right: 5px !important; }
+            .stratix-text { font-size: 1.1rem !important; letter-spacing: 0px; }
+            .navbar-brand img { height: 26px !important; }
+            .hamburger-btn { padding: 0.2rem; font-size: 1.2rem; margin-right: 0.2rem !important; }
+            
+            /* Translate, Bell & Profile scaling */
+            .custom-translate-dropdown { padding: 2px 4px; font-size: 0.7rem; width: auto; margin-right: 4px; } 
+            .greeting-box { display: block !important; text-align: right; line-height: 1; margin-right: 0.2rem !important; }
+            .greeting-text { font-size: 0.70rem !important; margin-bottom: 2px; }
+            .role-text { font-size: 0.55rem !important; }
+            .avatar-circle { width: 28px !important; height: 28px !important; }
+            .avatar-circle i { font-size: 0.7rem !important; }
+            .dropdown-menu-end { position: absolute !important; right: 0; left: auto; }
+            
+            /* Hide the text globe icon and small arrow to save space */
+            .hide-on-micro { display: none !important; }
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -144,30 +164,31 @@
     <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1060; margin-top: 60px;"></div>
 
     <nav class="navbar fixed-top">
-        <div class="container-fluid px-4">
+        <div class="container-fluid px-2 px-md-4">
+            
             <div class="d-flex align-items-center">
-                <button class="hamburger-btn me-3" type="button" data-bs-toggle="offcanvas" data-bs-target="#sideMenu">
+                <button class="hamburger-btn me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#sideMenu">
                     <i class="fas fa-bars"></i>
                 </button>
-                <a class="navbar-brand d-flex align-items-center gap-2" href="{% url 'dashboard_home' %}">
+                <a class="navbar-brand d-flex align-items-center gap-1" href="{% url 'dashboard_home' %}">
                     <img src="{% static 'images/stratix-logo.png' %}" alt="Stratix Logo" height="40" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));">
                     <span class="fw-bold fs-4 stratix-text">STRATIX</span>
                 </a>
             </div>
             
-            <div class="d-none d-md-flex w-50 justify-content-end align-items-center">
+            <div class="d-flex flex-grow-1 justify-content-end align-items-center">
                 
-                <div class="me-3 d-flex align-items-center">
-                    <i class="fas fa-globe text-muted me-2" style="font-size: 1.1rem;"></i>
-                    <select id="custom-language-selector" class="custom-translate-dropdown">
-                        <option value="en">English</option>
-                        <option value="es">Español</option>
-                        <option value="fr">Français</option>
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-globe text-muted me-1 hide-on-micro" style="font-size: 1.1rem;"></i>
+                    <select id="custom-language-selector" class="custom-translate-dropdown" title="Translate">
+                        <option value="en">EN</option>
+                        <option value="es">ES</option>
+                        <option value="fr">FR</option>
                     </select>
                     <div id="google_translate_element" style="display:none;"></div>
                 </div>
 
-                 <div class="dropdown me-4">
+                <div class="dropdown mx-2">
                     <button class="btn btn-dark position-relative border-0 bg-transparent p-0 mt-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="bellIconBtn">
                         <i class="fas fa-bell fs-5 text-warning"></i>
                         {% if recent_alerts %}
@@ -193,21 +214,21 @@
                     </ul>
                 </div>
 
-                <div class="dropdown ms-3 ps-3 border-start border-secondary d-flex align-items-center">
+                <div class="dropdown border-start border-secondary ps-2 d-flex align-items-center">
                     <button class="btn btn-transparent p-0 border-0 d-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="outline:none; box-shadow:none;">
-                        <div class="text-end d-none d-sm-block me-3 lh-1">
-                            <div class="text-light fw-bold" style="font-size: 0.95rem;"><span id="dynamic-greeting">Hello</span>, {{ user.first_name|default:user.username|title }}</div>
-                            <div class="text-warning text-uppercase mt-1" style="font-size: 0.70rem; font-weight: 800; letter-spacing: 0.5px;">{{ user.profile.get_role_display }}</div>
+                        <div class="greeting-box me-3 lh-1">
+                            <div class="text-light fw-bold greeting-text" style="font-size: 0.95rem;"><span id="dynamic-greeting">Hello</span>, {{ user.first_name|default:user.username|title }}</div>
+                            <div class="text-warning text-uppercase role-text mt-1" style="font-size: 0.70rem; font-weight: 800; letter-spacing: 0.5px;">{{ user.profile.get_role_display }}</div>
                         </div>
-                        <div class="bg-secondary bg-opacity-25 rounded-circle d-flex justify-content-center align-items-center" style="width: 42px; height: 42px; border: 1px solid #334155;">
+                        <div class="avatar-circle bg-secondary bg-opacity-25 rounded-circle d-flex justify-content-center align-items-center" style="width: 42px; height: 42px; border: 1px solid #334155;">
                             <i class="fas fa-user fs-5 text-light"></i>
                         </div>
-                        <i class="fas fa-chevron-down ms-2 text-muted" style="font-size: 0.75rem;"></i>
+                        <i class="fas fa-chevron-down ms-2 text-muted hide-on-micro" style="font-size: 0.75rem;"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow-lg mt-3" style="width: 240px; border: 1px solid #334155; border-radius: 12px; background-color: rgba(30,41,55,0.95); backdrop-filter: blur(16px);">
                         <li><div class="dropdown-item-text pb-3 border-bottom border-secondary border-opacity-25">
                             <div class="fw-bold text-white fs-6">{{ user.first_name|default:user.username|title }} {{ user.last_name }}</div>
-                            <div class="text-muted small">{{ user.email|default:"No email attached" }}</div>
+                            <div class="text-warning small fw-bold">{{ user.profile.get_role_display }}</div>
                         </div></li>
                         <li><a class="dropdown-item py-2 mt-2 text-white" href="{% url 'dashboard_home' %}"><i class="fas fa-chart-line me-2 text-info"></i> Dashboard</a></li>
                         <li><a class="dropdown-item py-2 text-white" href="{% url 'support_page' %}"><i class="fas fa-headset me-2 text-warning"></i> Stratix Support</a></li>
@@ -225,56 +246,60 @@
             <div class="d-flex align-items-center justify-content-between w-100">
                 <div class="d-flex align-items-center gap-2 px-2">
                     <img src="{% static 'images/stratix-logo.png' %}" alt="Stratix Logo" height="40">
-                    <span class="fw-bold fs-4 stratix-text">STRATIX</span>
+                    <span class="fw-bold fs-4 stratix-text d-inline">STRATIX</span>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
             </div>
             <div class="px-2 mt-3 text-info fw-semibold fs-6">
-                <i class="fas fa-user-circle me-2"></i>User: {{ user.username|title }} <span class="text-muted fw-normal">({{ user.profile.get_role_display }})</span>
+                <i class="fas fa-user-circle me-2"></i>{{ user.username|title }} <span class="text-muted fw-normal">({{ user.profile.get_role_display }})</span>
             </div>
         </div>
+        
         <div class="offcanvas-body d-flex flex-column p-4">
-            <ul class="nav flex-column mb-auto fs-6 fw-semibold">
-                
-                <li class="nav-item"><a class="nav-link text-warning py-2 px-3 bg-secondary bg-opacity-25" href="{% url 'dashboard_home' %}"><i class="fas fa-chart-line me-3"></i> Dashboard</a></li>
-                
-                {% if user.profile.role == 'Client' %}
-                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'site_visit_list' %}"><i class="fas fa-satellite-dish me-3 text-info"></i> Live Report Tracker</a></li>
-                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'client_portal' %}"><i class="fas fa-file-pdf me-3 text-danger"></i> Report Download Hub</a></li>
-                {% else %}
-                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'site_visit_list' %}"><i class="fas fa-list me-3 text-info"></i> Site Visit List</a></li>
-                {% endif %}
+            <div class="flex-grow-1" style="overflow-y: auto; overflow-x: hidden; padding-right: 10px;">
+                <ul class="nav flex-column mb-auto fs-6 fw-semibold">
+                    <li class="nav-item"><a class="nav-link text-warning py-2 px-3 bg-secondary bg-opacity-25" href="{% url 'dashboard_home' %}"><i class="fas fa-chart-line me-3"></i> Dashboard</a></li>
+                    
+                    {% if user.profile.role == 'Client' %}
+                    <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'site_visit_list' %}"><i class="fas fa-satellite-dish me-3 text-info"></i> Live Report Tracker</a></li>
+                    <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'client_portal' %}"><i class="fas fa-file-pdf me-3 text-danger"></i> Report Download Hub</a></li>
+                    {% else %}
+                    <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'site_visit_list' %}"><i class="fas fa-list me-3 text-info"></i> Site Visit List</a></li>
+                    {% endif %}
 
+                    {% if user.is_superuser or user.profile.role == 'Admin' %}
+                    <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'import_sites' %}"><i class="fas fa-file-excel me-3 text-success"></i> Bulk Import Sites</a></li>
+                    <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'client_portal' %}"><i class="fas fa-file-pdf me-3 text-danger"></i> Report Download Hub</a></li>
+                    {% endif %}
+
+                    <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'site_issues' %}"><i class="fas fa-exclamation-triangle me-3 text-danger"></i> Site Issues</a></li>
+                    
+                    {% if user.is_superuser or user.profile.role == 'Contractor' or user.profile.role == 'Admin' or user.profile.role == 'Client' %}
+                    <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'rework_log' %}"><i class="fas fa-tools me-3 text-warning"></i> Rework Log</a></li>
+                    {% endif %}
+
+                    {% if user.is_superuser or user.profile.role == 'Admin' or user.profile.role == 'QA' %}
+                    <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'qa_hub' %}"><i class="fas fa-clipboard-check me-3 text-success"></i> QA Validation Hub</a></li>
+                    {% endif %}
+
+                    {% if user.is_superuser or user.profile.role == 'Admin' or user.profile.role == 'Tech Writer' or user.profile.role == 'QA' %}
+                    <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'tech_writer_hub' %}"><i class="fas fa-file-signature me-3 text-primary"></i> Tech Writer Hub</a></li>
+                    {% endif %}
+
+                    <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'global_map' %}"><i class="fas fa-globe me-3 text-success"></i> Global Map</a></li>
+
+                    <li class="nav-item border-top border-secondary pt-2 mt-2">
+                        <a class="nav-link text-white py-2 px-3" href="{% url 'support_page' %}"><i class="fas fa-headset me-3 text-warning"></i> Stratix Support</a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="mt-4 pt-3 border-top border-secondary flex-shrink-0">
                 {% if user.is_superuser or user.profile.role == 'Admin' %}
-                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'import_sites' %}"><i class="fas fa-file-excel me-3 text-success"></i> Bulk Import Sites</a></li>
-                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'client_portal' %}"><i class="fas fa-file-pdf me-3 text-danger"></i> Report Download Hub</a></li>
+                <a class="btn btn-outline-danger w-100 py-2 fw-semibold mb-2" href="{% url 'admin:index' %}"><i class="fas fa-user-shield me-2"></i> Admin Panel</a>
                 {% endif %}
-
-                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'site_issues' %}"><i class="fas fa-exclamation-triangle me-3 text-danger"></i> Site Issues</a></li>
-                
-                {% if user.is_superuser or user.profile.role == 'Contractor' or user.profile.role == 'Admin' or user.profile.role == 'Client' %}
-                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'rework_log' %}"><i class="fas fa-tools me-3 text-warning"></i> Rework Log</a></li>
-                {% endif %}
-
-                {% if user.is_superuser or user.profile.role == 'Admin' or user.profile.role == 'QA' %}
-                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'qa_hub' %}"><i class="fas fa-clipboard-check me-3 text-success"></i> QA Validation Hub</a></li>
-                {% endif %}
-
-                {% if user.is_superuser or user.profile.role == 'Admin' or user.profile.role == 'Tech Writer' or user.profile.role == 'QA' %}
-                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'tech_writer_hub' %}"><i class="fas fa-file-signature me-3 text-primary"></i> Tech Writer Hub</a></li>
-                {% endif %}
-
-                <li class="nav-item"><a class="nav-link text-white py-2 px-3" href="{% url 'global_map' %}"><i class="fas fa-globe me-3 text-success"></i> Global Map</a></li>
-
-                <li class="nav-item border-top border-secondary pt-2 mt-2">
-                    <a class="nav-link text-white py-2 px-3" href="{% url 'support_page' %}"><i class="fas fa-headset me-3 text-warning"></i> Stratix Support</a>
-                </li>
-
-                {% if user.is_superuser or user.profile.role == 'Admin' %}
-                <li class="nav-item mt-3 border-top border-secondary pt-3"><a class="nav-link text-danger py-2 px-3" href="{% url 'admin:index' %}"><i class="fas fa-user-shield me-3"></i> Admin Panel</a></li>
-                {% endif %}
-            </ul>
-            <a href="{% url 'logout' %}" class="btn btn-danger mt-auto flex-shrink-0 py-2 fw-semibold rounded-3"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
+                <a href="{% url 'logout' %}" class="btn btn-danger w-100 py-2 fw-semibold rounded-3"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
+            </div>
         </div>
     </div>
 
@@ -301,7 +326,6 @@
     <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
     <script>
         $(document).ready(function() {
-            // DYNAMIC TIME GREETING SCRIPT
             function updateGreeting() {
                 var hour = new Date().getHours();
                 var greetingText = "Hello";
@@ -314,16 +338,12 @@
                 }
                 $('#dynamic-greeting').text(greetingText);
             }
-            updateGreeting(); // Run immediately
+            updateGreeting(); 
 
-            // Mobile Haptic Feedback on all Buttons!
             $('.btn, .nav-link').on('click', function() {
-                if (navigator.vibrate) {
-                    navigator.vibrate(40); 
-                }
+                if (navigator.vibrate) { navigator.vibrate(40); }
             });
 
-            // Monitor for Google's dynamic script shifting the body
             function checkBodyPosition() {
                 if ($('body').css('top') !== '0px') {
                     $('body').css('top', '0px');
