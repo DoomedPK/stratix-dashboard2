@@ -473,6 +473,7 @@ def qa_hub(request):
     return render(request, 'reports/qa_hub.html', {'sites': sites_needing_review, 'drafted_reports': drafted_reports})
 
 @login_required
+@login_required
 def qa_review(request, site_id):
     user = request.user
     if not (user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['Admin', 'QA'])):
@@ -482,22 +483,48 @@ def qa_review(request, site_id):
     pending_photos = SitePhoto.objects.filter(site=site, status='PENDING').order_by('category')
 
     if request.method == 'POST':
-        photo = get_object_or_404(SitePhoto, id=request.POST.get('photo_id'))
         action = request.POST.get('action')
-        feedback = request.POST.get('feedback', '')
         
-        if action == 'approve':
+        # --- 🚀 NEW BULK ACTIONS ---
+        if action == 'bulk_approve':
+            photo_ids = request.POST.getlist('photo_ids')
+            if photo_ids:
+                SitePhoto.objects.filter(id__in=photo_ids, site=site).update(status='APPROVED')
+                messages.success(request, f"Successfully approved {len(photo_ids)} photos.")
+            else:
+                messages.warning(request, "No photos selected.")
+                
+        elif action == 'bulk_reject':
+            photo_ids = request.POST.getlist('photo_ids')
+            if photo_ids:
+                bulk_feedback = request.POST.get('bulk_feedback', 'Bulk Rejected by QA')
+                photos_to_reject = SitePhoto.objects.filter(id__in=photo_ids, site=site)
+                for p in photos_to_reject:
+                    p.status = 'REJECTED'
+                    p.qa_feedback = f"[Reworked] {bulk_feedback}" if 'Rework' in (p.qa_feedback or "") else bulk_feedback
+                    p.save()
+                ActivityAlert.objects.create(message=f"QA bulk-rejected {len(photo_ids)} photos for rework.", user=request.user, site=site, alert_type='REWORK')
+                messages.warning(request, f"Bulk rejected {len(photo_ids)} photos.")
+            else:
+                messages.warning(request, "No photos selected.")
+                
+        # --- ORIGINAL SINGLE ACTIONS ---
+        elif action and action.startswith('approve_'):
+            photo_id = action.split('_')[1]
+            photo = get_object_or_404(SitePhoto, id=photo_id, site=site)
             photo.status = 'APPROVED'
-        elif action == 'reject':
-            photo.status = 'REJECTED'
-            ActivityAlert.objects.create(message="QA rejected photo.", user=request.user, site=site, alert_type='REWORK')
+            photo.save()
             
-        if 'Rework' in (photo.qa_feedback or ""):
-            photo.qa_feedback = f"[Reworked] {feedback}"
-        else:
-            photo.qa_feedback = feedback
-        photo.save()
+        elif action and action.startswith('reject_'):
+            photo_id = action.split('_')[1]
+            feedback = request.POST.get(f'feedback_{photo_id}', '')
+            photo = get_object_or_404(SitePhoto, id=photo_id, site=site)
+            photo.status = 'REJECTED'
+            photo.qa_feedback = f"[Reworked] {feedback}" if 'Rework' in (photo.qa_feedback or "") else feedback
+            photo.save()
+            ActivityAlert.objects.create(message="QA rejected a photo.", user=request.user, site=site, alert_type='REWORK')
 
+        # --- TRANSITION CHECK ---
         if SitePhoto.objects.filter(site=site, status__in=['PENDING', 'REJECTED']).count() == 0 and SitePhoto.objects.filter(site=site).count() > 0:
             report = Report.objects.filter(site=site).first()
             if report and report.status == 'qa_validation':
@@ -505,7 +532,9 @@ def qa_review(request, site_id):
                 report.save()
                 ActivityAlert.objects.create(message="Site Validated. Ready for technical writing.", user=request.user, site=site, alert_type='UPLOAD')
             return redirect('qa_hub')
+            
         return redirect('qa_review', site_id=site.id)
+        
     return render(request, 'reports/qa_review.html', {'site': site, 'photos': pending_photos})
 
 @login_required
