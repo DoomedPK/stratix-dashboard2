@@ -116,7 +116,6 @@ else:
 
 if not DEBUG:
     SUPABASE_PROJECT_REF = config('SUPABASE_PROJECT_REF', default='')
-    # 🚀 REPLACED ANON KEY WITH S3 KEYS
     AWS_ACCESS_KEY_ID = config('SUPABASE_S3_ACCESS_KEY', default='')
     AWS_SECRET_ACCESS_KEY = config('SUPABASE_S3_SECRET_KEY', default='')
     SUPABASE_STORAGE_BUCKET_NAME = config('SUPABASE_STORAGE_BUCKET_NAME', default='site-photos')
@@ -135,10 +134,6 @@ if not DEBUG:
 else:
     MEDIA_URL = '/media/'
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-        
-else:
-    MEDIA_URL = '/media/'
-    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # ----------------------------------------------------------------------
 # 🚀 NEW: EMAIL SMTP CONFIGURATION (Gmail)
@@ -147,7 +142,6 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-# Fetches credentials safely from Render environment
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='stratixconstruction@gmail.com')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
@@ -199,7 +193,7 @@ JAZZMIN_SETTINGS = {
         "reports.Report", 
         "reports.SitePhoto", 
         "reports.SiteIssue",
-        "reports.SupportTicket", # 🚀 Injects the new table into the menu order
+        "reports.SupportTicket",
         "reports.ActivityAlert", 
         "reports.Client", 
         "reports.UserProfile",
@@ -218,7 +212,7 @@ JAZZMIN_SETTINGS = {
         "reports.ActivityAlert": "fas fa-bell text-warning",
         "reports.UserProfile": "fas fa-id-card",
         "reports.SiteIssue": "fas fa-exclamation-triangle text-danger",
-        "reports.SupportTicket": "fas fa-ticket-alt text-success", # 🚀 Icon for Support Tickets
+        "reports.SupportTicket": "fas fa-ticket-alt text-success",
     },
     
     "default_icon_parents": "fas fa-chevron-circle-right",
@@ -266,16 +260,8 @@ JAZZMIN_UI_TWEAKS = {
     }
 }
 
-# ----------------------------------------------------------------------
-# 🚀 ENTERPRISE PRODUCTION SECURITY HEADERS
-# ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-# 🚀 ENTERPRISE PRODUCTION SECURITY HEADERS
-# ----------------------------------------------------------------------
 if not DEBUG:
-    # 🚀 THE FIX: Tells Django to trust Render's HTTPS proxy
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_SSL_REDIRECT = True
