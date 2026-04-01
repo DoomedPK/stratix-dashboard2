@@ -114,12 +114,16 @@
                 <input type="text" name="username" class="form-control" placeholder="Enter username" required>
             </div>
 
-            <div class="mb-4">
+            <div class="mb-3">
                 <label class="form-label">Password</label>
                 <div class="password-wrapper">
                     <input type="password" name="password" id="passwordField" class="form-control" placeholder="Enter password" required>
                     <i class="fas fa-eye toggle-password-eye" id="togglePassword"></i>
                 </div>
+            </div>
+            
+            <div class="text-end mb-4">
+                <a href="{% url 'password_reset' %}" class="text-warning small text-decoration-none fw-semibold">Forgot Password?</a>
             </div>
 
             <button type="submit" class="btn btn-stratix-login w-100 mt-2">Log In</button>
