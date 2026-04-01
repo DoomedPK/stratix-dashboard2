@@ -8,12 +8,25 @@
             <div class="card p-4 shadow-sm border-danger-left">
                 <h2 class="fw-bold text-white mb-3"><i class="fas fa-tools me-2 text-danger"></i> Fix Rejected Photo</h2>
                 
-                <div class="alert bg-dark border-danger text-light mb-4">
-                    <p class="mb-1 text-muted small fw-bold text-uppercase">Site ID</p>
-                    <p class="mb-3 fw-bold text-primary">{{ photo.site.site_id }}</p>
-                    
-                    <p class="mb-1 text-muted small fw-bold text-uppercase">QA Feedback</p>
-                    <p class="mb-0 text-warning fst-italic"><i class="fas fa-exclamation-circle me-1"></i> "{{ photo.qa_feedback }}"</p>
+                <div class="alert bg-dark border-danger text-light mb-4 p-3">
+                    <div class="d-flex align-items-center gap-3">
+                        
+                        <div style="flex-shrink: 0;" class="text-center">
+                            <a href="{{ photo.image.url }}" data-fancybox="gallery" data-caption="Rejected Photo - {{ photo.category }}">
+                                <img src="{{ photo.image.url }}" class="rounded border border-danger shadow-sm" style="width: 85px; height: 85px; object-fit: cover; cursor: pointer;" alt="Rejected Image">
+                            </a>
+                            <div class="mt-1"><span class="badge bg-danger" style="font-size: 0.65rem; letter-spacing: 1px;">REJECTED</span></div>
+                        </div>
+                        
+                        <div class="flex-grow-1 border-start border-secondary ps-3">
+                            <p class="mb-1 text-muted small fw-bold text-uppercase">Site ID / Category</p>
+                            <p class="mb-2 fw-bold text-primary">{{ photo.site.site_id }} <span class="text-light ms-1">- {{ photo.category }}</span></p>
+                            
+                            <p class="mb-1 text-muted small fw-bold text-uppercase">QA Feedback</p>
+                            <p class="mb-0 text-warning fst-italic" style="font-size: 0.95rem; line-height: 1.2;"><i class="fas fa-exclamation-circle me-1"></i> "{{ photo.qa_feedback }}"</p>
+                        </div>
+                        
+                    </div>
                 </div>
 
                 <form method="POST" enctype="multipart/form-data">
