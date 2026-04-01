@@ -122,21 +122,27 @@ if not DEBUG:
 
     if SUPABASE_PROJECT_REF and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
         AWS_S3_ENDPOINT_URL = f'https://{SUPABASE_PROJECT_REF}.supabase.co/storage/v1/s3'
-        AWS_S3_FILE_OVERWRITE = False
-        AWS_DEFAULT_ACL = None 
+        
+        # 🚀 THE MISSING LINE: Tells Django exactly which bucket to use!
+        AWS_STORAGE_BUCKET_NAME = SUPABASE_STORAGE_BUCKET_NAME
+        
         AWS_S3_REGION_NAME = 'us-east-1' 
         AWS_S3_SIGNATURE_VERSION = 's3v4'
+        AWS_S3_FILE_OVERWRITE = False
+        AWS_DEFAULT_ACL = None 
+        
+        # 🚀 SUPABASE REQUIREMENTS: Forces "path" style URLs and removes broken signatures
+        AWS_S3_ADDRESSING_STYLE = 'path'
+        AWS_QUERYSTRING_AUTH = False 
+        
         AWS_S3_CUSTOM_DOMAIN = f'{SUPABASE_PROJECT_REF}.supabase.co/storage/v1/object/public/{SUPABASE_STORAGE_BUCKET_NAME}'
         AWS_S3_USE_SSL = True
-
-        AWS_QUERYSTRING_AUTH = False
 
         DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
         MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
 else:
     MEDIA_URL = '/media/'
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
 # ----------------------------------------------------------------------
 # 🚀 NEW: EMAIL SMTP CONFIGURATION (Gmail)
 # ----------------------------------------------------------------------
