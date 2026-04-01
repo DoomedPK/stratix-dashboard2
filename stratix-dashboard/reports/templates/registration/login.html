@@ -10,11 +10,12 @@
 
     <style>
        body {
+        /* 🚀 Adds a 60% dark overlay directly over the image to hide pixelation */
         background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url("{% static 'images/abstract-bg.jpg' %}");
         background-size: cover;
         background-position: center center;
         background-repeat: no-repeat;
-        /* 🚀 Removed 'fixed' attachment which breaks mobile background scaling */
+        /* 🚀 Removed 'background-attachment: fixed;' as it breaks mobile scaling */
         min-height: 100vh;
         display: flex;
         align-items: center;
@@ -125,7 +126,7 @@
         </form>
         
         <div class="mt-4 pt-3 text-center" style="border-top: 1px solid rgba(255,255,255,0.1);">
-            <p class="small mb-0" style="color: rgba(255,255,255,0.5);">&copy; Stratix Group Limited</p>
+            <p class="small mb-0" style="color: rgba(255,255,255,0.5);">&copy; Stratix Group</p>
         </div>
     </div>
 
