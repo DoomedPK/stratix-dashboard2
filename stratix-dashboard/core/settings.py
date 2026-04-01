@@ -89,9 +89,6 @@ STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
-if not DEBUG:
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_URL = 'login'
@@ -114,6 +111,9 @@ else:
         'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'},
     }
 
+# ----------------------------------------------------------------------
+# 🚀 DJANGO 5.1 STORAGE CONFIGURATION (Fix for Supabase 404 Error)
+# ----------------------------------------------------------------------
 if not DEBUG:
     SUPABASE_PROJECT_REF = config('SUPABASE_PROJECT_REF', default='')
     AWS_ACCESS_KEY_ID = config('SUPABASE_S3_ACCESS_KEY', default='')
@@ -122,37 +122,49 @@ if not DEBUG:
 
     if SUPABASE_PROJECT_REF and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
         AWS_S3_ENDPOINT_URL = f'https://{SUPABASE_PROJECT_REF}.supabase.co/storage/v1/s3'
-        
-        # 🚀 THE MISSING LINE: Tells Django exactly which bucket to use!
         AWS_STORAGE_BUCKET_NAME = SUPABASE_STORAGE_BUCKET_NAME
-        
         AWS_S3_REGION_NAME = 'us-east-1' 
         AWS_S3_SIGNATURE_VERSION = 's3v4'
         AWS_S3_FILE_OVERWRITE = False
         AWS_DEFAULT_ACL = None 
-        
-        # 🚀 SUPABASE REQUIREMENTS: Forces "path" style URLs and removes broken signatures
         AWS_S3_ADDRESSING_STYLE = 'path'
         AWS_QUERYSTRING_AUTH = False 
         
         AWS_S3_CUSTOM_DOMAIN = f'{SUPABASE_PROJECT_REF}.supabase.co/storage/v1/object/public/{SUPABASE_STORAGE_BUCKET_NAME}'
         AWS_S3_USE_SSL = True
-
-        DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
         MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
+
+        # 🚀 DJANGO 5.1 REQUIRED STORAGES DICTIONARY
+        STORAGES = {
+            "default": {
+                "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+            },
+            "staticfiles": {
+                "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+            },
+        }
 else:
     MEDIA_URL = '/media/'
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+
 # ----------------------------------------------------------------------
-# 🚀 NEW: EMAIL SMTP CONFIGURATION (Gmail)
+# EMAIL SMTP CONFIGURATION
 # ----------------------------------------------------------------------
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='clientrelations@stratixjm.com')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='stratixconstruction@gmail.com')
+# EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = 'stratixconstruction@gmail.com'
 
 # ----------------------------------------------------------------------
 # JAZZMIN ADMIN UI CONFIGURATION
