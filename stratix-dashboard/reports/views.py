@@ -737,7 +737,7 @@ Please log into the Stratix Command Center admin panel to view and resolve this 
                 subject=f"[STRATIX ALERT] Support Ticket #{ticket.id}: {ticket_subject}",
                 message=email_message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=['stratixconstruction@gmail.com'],
+                recipient_list=['clientrelations@stratixjm.com'],
                 fail_silently=True,
             )
         except Exception as e:
