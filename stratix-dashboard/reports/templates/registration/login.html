@@ -10,13 +10,12 @@
 
     <style>
        body {
-            /* 🚀 Adds a 60% dark overlay directly over the image to hide pixelation */
         background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url("{% static 'images/abstract-bg.jpg' %}");
         background-size: cover;
-        background-position: center;
+        background-position: center center;
         background-repeat: no-repeat;
-        background-attachment: fixed;
-        height: 100vh;
+        /* 🚀 Removed 'fixed' attachment which breaks mobile background scaling */
+        min-height: 100vh;
         display: flex;
         align-items: center;
         justify-content: center;
